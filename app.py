@@ -6,14 +6,20 @@ from model import DentalFusionNetwork
 from data import generate_panoramic, generate_cbct, generate_soft_tissue
 from transforms import get_transforms
 
-st.title("Dental AI Fusion Demo")
+st.title("🦷 Dental AI Fusion Demo")
+
+st.write("Click below to run the model")
 
 if st.button("Run Fusion"):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    pan = generate_panoramic()
-    cbct = generate_cbct()
-    soft = generate_soft_tissue()
+    st.write("Running model...")
+
+    device = torch.device("cpu")
+
+    # 🔽 REDUCED SIZE (VERY IMPORTANT)
+    pan = generate_panoramic((64, 64))
+    cbct = generate_cbct((64, 64, 32))
+    soft = generate_soft_tissue((64, 64))
 
     pan_t, cbct_t, soft_t = get_transforms()
 
@@ -24,8 +30,15 @@ if st.button("Run Fusion"):
     model = DentalFusionNetwork().to(device)
     model.eval()
 
-    with torch.no_grad():
-        output, _ = model(pan, cbct, soft)
+    try:
+        with torch.no_grad():
+            output, _ = model(pan, cbct, soft)
+
+        st.success("Model ran successfully ✅")
+
+    except Exception as e:
+        st.error(f"Error running model: {e}")
+        st.stop()
 
     pan = pan.cpu().numpy()[0, 0]
     cbct = cbct.cpu().numpy()[0, 0]
