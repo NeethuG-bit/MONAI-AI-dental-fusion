@@ -49,7 +49,7 @@ if st.button("Run Fusion"):
 
     fig, axs = plt.subplots(1, 4, figsize=(12, 4))
 
-    axs[0].imshow(pan[:, :, mid], cmap="viridis")
+    axs[0].imshow(pan, cmap="viridis")
     axs[0].set_title("Panoramic")
 
     axs[1].imshow(cbct[:, :, mid], cmap="viridis")
