@@ -45,20 +45,44 @@ if st.button("Run Fusion"):
     soft = soft.cpu().numpy()[0, 0]
     output = output.cpu().numpy()[0, 0]
 
-    mid = pan.shape[-1] // 2
+    st.write("Pan shape:", pan.shape)
+    st.write("CBCT shape:", cbct.shape)
+    st.write("Soft shape:", soft.shape)
+    st.write("Output shape:", output.shape)
+
+    st.write("Panoramic:", pan)
+    st.write("CBCT:", cbct)
+    st.write("Soft:", soft)
+    st.write("Output:", output)
+
+    def get_display_slice(arr):
+        """Return a 2D slice for visualization from 2D/3D arrays."""
+        if arr.ndim == 2:
+            return arr
+        if arr.ndim == 3:
+            mid = arr.shape[-1] // 2
+            return arr[:, :, mid]
+        # Fallback for unexpected dimensions: squeeze and try once more.
+        squeezed = arr.squeeze()
+        if squeezed.ndim == 2:
+            return squeezed
+        if squeezed.ndim == 3:
+            mid = squeezed.shape[-1] // 2
+            return squeezed[:, :, mid]
+        raise ValueError(f"Unsupported array shape for display: {arr.shape}")
 
     fig, axs = plt.subplots(1, 4, figsize=(12, 4))
 
-    axs[0].imshow(pan, cmap="viridis")
+    axs[0].imshow(get_display_slice(pan), cmap="viridis")
     axs[0].set_title("Panoramic")
 
-    axs[1].imshow(cbct[:, :, mid], cmap="viridis")
+    axs[1].imshow(get_display_slice(cbct), cmap="viridis")
     axs[1].set_title("CBCT")
 
-    axs[2].imshow(soft[:, :, mid], cmap="viridis")
+    axs[2].imshow(get_display_slice(soft), cmap="viridis")
     axs[2].set_title("Soft Tissue")
 
-    axs[3].imshow(output[:, :, mid], cmap="viridis")
+    axs[3].imshow(get_display_slice(output), cmap="viridis")
     axs[3].set_title("Output")
 
     for ax in axs:
