@@ -55,12 +55,14 @@ if st.button("Run Fusion"):
     st.write("Soft:", soft)
     st.write("Output:", output)
 
+    st.subheader("Model Results")
+
     def get_slice(img):
-    if img.ndim == 2:
+        if img.ndim == 2:
+            return img
+        elif img.ndim == 3:
+            return img[:, :, img.shape[2] // 2]  # slice along depth
         return img
-    elif img.ndim == 3:
-        return img[:, :, img.shape[2] // 2]  # slice along depth
-    return img
 
 fig, axs = plt.subplots(1, 4, figsize=(14, 4))
 
@@ -80,3 +82,4 @@ for ax in axs:
     ax.axis("off")
 
 st.pyplot(fig)
+st.success("Visualization generated successfully")
