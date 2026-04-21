@@ -1,9 +1,9 @@
+streamlit
 torch
 torchvision
 monai
-streamlit
 matplotlib
 numpy
-scikit-image
 scipy
+scikit-image
 nibabel
