@@ -140,7 +140,7 @@ elif page == "Live Demo":
         fig.savefig(buf, format="png", bbox_inches="tight", dpi=180)
         buf.seek(0)
 
-               st.download_button(
+        st.download_button(
             "Download Demo Figure",
             data=buf,
             file_name="dental_ai_fusion_output.png",
