@@ -27,11 +27,18 @@ from demo_sections import (
     section_title,
 )
 
-st.set_page_config(page_title="Dental AI Fusion Platform", page_icon="🦷", layout="wide")
+st.set_page_config(
+    page_title="Dental AI Fusion Platform",
+    page_icon="🦷",
+    layout="wide"
+)
 
 with st.sidebar:
     st.title("Platform Navigation")
-    page = st.radio("Select view", ["Overview", "Live Demo", "Use Cases", "Architecture", "Platform"])
+    page = st.radio(
+        "Select view",
+        ["Overview", "Live Demo", "Use Cases", "Architecture", "Platform"]
+    )
     st.markdown("---")
     run_demo = st.button("Run Fusion Demo")
     show_shapes = st.toggle("Show tensor shapes", value=False)
@@ -113,10 +120,17 @@ elif page == "Live Demo":
         soft_np = soft_tensor.cpu().numpy()[0, 0]
         output_np = output_tensor.cpu().numpy()[0, 0]
 
-        #  Apply intensity HERE
         output_np = output_np * intensity
 
-        #  Display results
+        if show_shapes:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Panoramic", str(np.asarray(pan_np).shape))
+            c2.metric("CBCT", str(np.asarray(cbct_np).shape))
+            c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
+            c4.metric("Output", str(np.asarray(output_np).shape))
+
+        cmap = "viridis" if use_colored_output else "gray"
+
         st.markdown("### 🧾 Fusion Results")
 
         c1, c2, c3, c4 = st.columns(4)
@@ -125,44 +139,84 @@ elif page == "Live Demo":
         c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
         c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
-        #  Download figure (fixed)
         fig, axs = plt.subplots(1, 4, figsize=(15, 4))
-        axs[0].imshow(get_slice(pan_np))
-        axs[1].imshow(get_slice(cbct_np))
-        axs[2].imshow(get_slice(soft_np))
-        axs[3].imshow(get_slice(output_np))
+        axs[0].imshow(get_slice(pan_np), cmap=cmap)
+        axs[0].set_title("Panoramic")
+        axs[1].imshow(get_slice(cbct_np), cmap=cmap)
+        axs[1].set_title("CBCT")
+        axs[2].imshow(get_slice(soft_np), cmap=cmap)
+        axs[2].set_title("Soft Tissue")
+        axs[3].imshow(get_slice(output_np), cmap=cmap)
+        axs[3].set_title("Fused Output")
+
         for ax in axs:
             ax.axis("off")
 
         buf = io.BytesIO()
-        fig.savefig(buf, format="png")
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=180)
         buf.seek(0)
 
         st.download_button(
             "Download Demo Figure",
             data=buf,
-            file_name="fusion_output.png",
+            file_name="dental_ai_fusion_output.png",
             mime="image/png",
         )
 
-        # Insights
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
-• Multimodal fusion highlights structural + soft tissue alignment  
-• Demonstrates potential for diagnostic assistance  
-• Can support treatment planning workflows  
+• Fused output highlights structural + soft tissue correlation  
+• Potential regions of interest can be derived from intensity patterns  
+• Demonstrates multimodal alignment capability  
+• Supports future diagnostic and planning workflows  
 """)
 
-        # Metrics
         st.markdown("### 📊 Model Indicators")
         c1, c2, c3 = st.columns(3)
         c1.metric("Fusion Confidence", "87%", "+3%")
-        c2.metric("Alignment", "92%", "+5%")
-        c3.metric("Inference", "<1 sec")
+        c2.metric("Data Alignment", "92%", "+5%")
+        c3.metric("Inference Time", "< 1 sec")
 
         if mode == "Detailed Analysis":
-            st.write("Advanced analysis features can be added here.")
+            st.markdown("### 🔍 Detailed Analysis Mode")
+            st.write("Feature maps, intermediate outputs, and advanced review panels can be added here.")
 
+        report_text = """
+Dental AI Fusion Report
+
+Inputs:
+- Panoramic
+- CBCT
+- Soft Tissue
+
+Output:
+- Multimodal fused visualization generated
+
+Observations:
+- Structural and soft tissue integration visible
+- Suitable for planning workflows
+
+Note:
+This is a proof-of-concept output.
+"""
+        st.download_button(
+            "📄 Download Clinical Report",
+            data=report_text,
+            file_name="fusion_report.txt",
+        )
+
+        st.markdown("### 🚀 Future Roadmap")
+        st.success("""
+• DICOM integration  
+• Real patient data pipeline  
+• Model training on clinical datasets  
+• Edge deployment in dental clinics  
+• Automated diagnosis suggestions  
+""")
+
+        st.caption("⚠️ This demo uses synthetic/sample data for visualization purposes only. Not for clinical use.")
+
+        clinical_summary_box()
     else:
         st.info("Click 'Run Fusion Demo' to start")
 
@@ -181,4 +235,3 @@ elif page == "Platform":
     clinical_summary_box()
 
 footer_note()
-output_np = output_np * intensity
