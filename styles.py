@@ -5,13 +5,13 @@ def load_css():
         background:
             radial-gradient(circle at top right, rgba(34,211,238,0.10), transparent 22%),
             radial-gradient(circle at top left, rgba(99,102,241,0.12), transparent 24%),
-            linear-gradient(180deg, #060914 0%, #0a1020 100%);
+            linear-gradient(180deg, #050814 0%, #0a1020 100%);
         color: #edf2f7;
     }
 
     .block-container {
-        max-width: 1250px;
-        padding-top: 1.6rem;
+        max-width: 1280px;
+        padding-top: 1.4rem;
         padding-bottom: 3rem;
     }
 
@@ -25,44 +25,44 @@ def load_css():
     }
 
     .hero-shell {
-        padding: 2.2rem 2rem;
-        border-radius: 28px;
-        background: linear-gradient(135deg, rgba(16,24,45,0.96), rgba(9,14,30,0.96));
+        padding: 2.4rem 2.2rem;
+        border-radius: 30px;
+        background: linear-gradient(135deg, rgba(16,24,45,0.97), rgba(8,13,28,0.96));
         border: 1px solid rgba(125, 144, 255, 0.18);
-        box-shadow: 0 16px 50px rgba(0,0,0,0.30);
-        margin-bottom: 1.5rem;
+        box-shadow: 0 18px 60px rgba(0,0,0,0.34);
+        margin-bottom: 1.4rem;
     }
 
     .hero-badge {
         display: inline-block;
-        padding: 0.35rem 0.75rem;
+        padding: 0.35rem 0.8rem;
         border-radius: 999px;
         background: rgba(34, 211, 238, 0.12);
         border: 1px solid rgba(34, 211, 238, 0.20);
         color: #a5f3fc;
         font-size: 0.82rem;
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 1rem;
     }
 
     .hero-title {
-        font-size: 3rem;
+        font-size: 3.15rem;
         font-weight: 850;
-        line-height: 1.05;
+        line-height: 1.03;
         margin-bottom: 0.7rem;
         color: #ffffff;
     }
 
     .hero-subtitle {
-        font-size: 1.06rem;
+        font-size: 1.08rem;
         line-height: 1.7;
         color: #c6d3f5;
-        max-width: 900px;
+        max-width: 920px;
     }
 
     .section-title {
-        font-size: 1.55rem;
-        font-weight: 750;
+        font-size: 1.58rem;
+        font-weight: 760;
         margin-top: 0.4rem;
         margin-bottom: 1rem;
         color: #ffffff;
@@ -72,7 +72,7 @@ def load_css():
         color: #9db1db;
         margin-top: -0.5rem;
         margin-bottom: 1rem;
-        font-size: 0.96rem;
+        font-size: 0.97rem;
     }
 
     .product-card {
@@ -123,6 +123,18 @@ def load_css():
         color: #ffffff;
     }
 
+    .workflow-banner {
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.10), rgba(99,102,241,0.12));
+        border: 1px solid rgba(125, 144, 255, 0.16);
+        border-radius: 22px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+    }
+
+    .workflow-banner strong {
+        color: #ffffff;
+    }
+
     .clinical-note {
         background: rgba(12, 20, 40, 0.95);
         border: 1px solid rgba(125, 144, 255, 0.14);
@@ -138,6 +150,7 @@ def load_css():
         border-radius: 20px;
         padding: 1rem 1rem;
         margin-bottom: 1rem;
+        min-height: 130px;
     }
 
     .summary-card h4 {
@@ -153,6 +166,34 @@ def load_css():
         padding: 1rem;
     }
 
+    .preview-card {
+        background: rgba(13, 19, 36, 0.97);
+        border: 1px solid rgba(116, 137, 255, 0.14);
+        border-radius: 20px;
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .kpi-shell {
+        background: rgba(12,18,34,0.96);
+        border: 1px solid rgba(125,144,255,0.16);
+        border-radius: 20px;
+        padding: 0.8rem 1rem;
+        text-align: center;
+    }
+
+    .kpi-label {
+        color: #9db1db;
+        font-size: 0.82rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .kpi-value {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
     div[data-testid="stMetric"] {
         background: rgba(12,18,34,0.95);
         border: 1px solid rgba(125,144,255,0.16);
@@ -160,7 +201,8 @@ def load_css():
         padding: 0.65rem 0.8rem;
     }
 
-    div.stButton > button {
+    div.stButton > button,
+    div.stDownloadButton > button {
         background: linear-gradient(135deg, #4f46e5, #06b6d4);
         color: white;
         border: none;
@@ -169,7 +211,8 @@ def load_css():
         font-weight: 700;
     }
 
-    div.stButton > button:hover {
+    div.stButton > button:hover,
+    div.stDownloadButton > button:hover {
         background: linear-gradient(135deg, #4338ca, #0891b2);
         color: white;
     }

@@ -1,4 +1,6 @@
 import io
+import numpy as np
+from PIL import Image
 import streamlit as st
 import torch
 import matplotlib.pyplot as plt
@@ -10,6 +12,8 @@ from transforms import get_transforms
 from styles import load_css
 from demo_sections import (
     hero_section,
+    kpi_row,
+    workflow_banner,
     overview_cards,
     challenge_cards,
     modalities_cards,
@@ -42,44 +46,81 @@ with st.sidebar:
     show_shapes = st.toggle("Show tensor shapes", value=False)
     use_colored_output = st.toggle("Colored output", value=True)
     st.markdown("---")
-    st.caption("Clinical product-style proof of concept")
+    st.caption("Client-facing clinical product demo")
 
 hero_section()
+kpi_row()
+workflow_banner()
+
+def image_to_gray_array(uploaded_file, target_size=(64, 64)):
+    img = Image.open(uploaded_file).convert("L").resize(target_size)
+    arr = np.array(img).astype(np.float32)
+    arr = (arr / 255.0) * 2000 - 1000
+    return arr
 
 if page == "Overview":
     overview_cards()
     challenge_cards()
     modalities_cards()
     pipeline_cards()
-    upload_placeholders()
     outcomes_cards()
     clinical_summary_box()
 
 elif page == "Live Demo":
     section_title(
-        "Live Fusion Demo",
-        "Synthetic data-backed demo for product presentation and interface walkthrough."
+        "Live Fusion Dashboard",
+        "Preview uploads for a product-like experience, then run the current fusion demo."
     )
 
-    col_a, col_b, col_c = st.columns([1, 1, 1])
-    with col_a:
-        st.markdown('<span class="mini-tag">Panoramic</span>', unsafe_allow_html=True)
-        st.markdown('<span class="mini-tag">CBCT</span>', unsafe_allow_html=True)
-        st.markdown('<span class="mini-tag">Soft Tissue</span>', unsafe_allow_html=True)
-    with col_b:
-        st.markdown('<span class="mini-tag">MONAI</span>', unsafe_allow_html=True)
-        st.markdown('<span class="mini-tag">Fusion Demo</span>', unsafe_allow_html=True)
-    with col_c:
-        st.markdown('<span class="mini-tag">Clinical UI</span>', unsafe_allow_html=True)
-        st.markdown('<span class="mini-tag">POC</span>', unsafe_allow_html=True)
+    pan_file, cbct_file, soft_file = upload_placeholders()
+
+    preview_cols = st.columns(3)
+
+    with preview_cols[0]:
+        st.markdown('<div class="preview-card"><strong>Panoramic Preview</strong></div>', unsafe_allow_html=True)
+        if pan_file:
+            st.image(pan_file, use_container_width=True)
+        else:
+            st.info("No panoramic upload provided")
+
+    with preview_cols[1]:
+        st.markdown('<div class="preview-card"><strong>CBCT Preview</strong></div>', unsafe_allow_html=True)
+        if cbct_file:
+            st.image(cbct_file, use_container_width=True)
+        else:
+            st.info("No CBCT preview provided")
+
+    with preview_cols[2]:
+        st.markdown('<div class="preview-card"><strong>Soft Tissue Preview</strong></div>', unsafe_allow_html=True)
+        if soft_file:
+            st.image(soft_file, use_container_width=True)
+        else:
+            st.info("No soft tissue upload provided")
+
+    st.markdown("---")
 
     if run_demo:
-        with st.spinner("Running multimodal inference..."):
+        with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
-            pan = generate_panoramic((64, 64))
-            cbct = generate_cbct((64, 64, 32))
-            soft = generate_soft_tissue((64, 64))
+            # Use uploads if available, otherwise synthetic fallback
+            if pan_file:
+                pan = image_to_gray_array(pan_file, target_size=(64, 64))
+            else:
+                pan = generate_panoramic((64, 64))
+
+            if cbct_file:
+                cbct_2d = image_to_gray_array(cbct_file, target_size=(64, 64))
+                cbct = np.repeat(cbct_2d[:, :, None], 32, axis=2)
+            else:
+                cbct = generate_cbct((64, 64, 32))
+
+            if soft_file:
+                soft_img = Image.open(soft_file).convert("L").resize((64, 64))
+                soft = np.array(soft_img).astype(np.float32)
+                soft = (soft / 255.0) * 15.0
+            else:
+                soft = generate_soft_tissue((64, 64))
 
             pan_t, cbct_t, soft_t = get_transforms()
 
@@ -120,29 +161,38 @@ elif page == "Live Demo":
 
         cmap = "viridis" if use_colored_output else "gray"
 
-        st.markdown("### Fusion Visualization")
+        section_title("Fusion Visualization", "Synthetic or uploaded-preview-driven demonstration output")
 
-        fig, axs = plt.subplots(1, 4, figsize=(15, 4.2))
+        result_cols = st.columns(4)
+        visuals = [
+            ("Panoramic", get_slice(pan_np)),
+            ("CBCT", get_slice(cbct_np)),
+            ("Soft Tissue", get_slice(soft_np)),
+            ("Fused Output", get_slice(output_np)),
+        ]
 
+        for col, (title, image) in zip(result_cols, visuals):
+            with col:
+                st.markdown(f'<div class="preview-card"><strong>{title}</strong></div>', unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(3.2, 3.2))
+                ax.imshow(image, cmap=cmap)
+                ax.axis("off")
+                st.pyplot(fig, use_container_width=True)
+
+        fig_full, axs = plt.subplots(1, 4, figsize=(15, 4.2))
         axs[0].imshow(get_slice(pan_np), cmap=cmap)
         axs[0].set_title("Panoramic")
-
         axs[1].imshow(get_slice(cbct_np), cmap=cmap)
         axs[1].set_title("CBCT")
-
         axs[2].imshow(get_slice(soft_np), cmap=cmap)
         axs[2].set_title("Soft Tissue")
-
         axs[3].imshow(get_slice(output_np), cmap=cmap)
         axs[3].set_title("Fused Output")
-
         for ax in axs:
             ax.axis("off")
 
-        st.pyplot(fig, use_container_width=True)
-
         buffer = io.BytesIO()
-        fig.savefig(buffer, format="png", bbox_inches="tight", dpi=180)
+        fig_full.savefig(buffer, format="png", bbox_inches="tight", dpi=180)
         buffer.seek(0)
 
         c1, c2, c3 = st.columns(3)
@@ -151,7 +201,7 @@ elif page == "Live Demo":
                 """
                 <div class="summary-card">
                     <h4>Inference Summary</h4>
-                    CPU-based demo execution for cloud-friendly product presentation.
+                    CPU-based cloud demo optimized for client-facing presentation and product walkthrough.
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -160,8 +210,8 @@ elif page == "Live Demo":
             st.markdown(
                 """
                 <div class="summary-card">
-                    <h4>Fusion Strategy</h4>
-                    Feature-level multimodal combination across panoramic, CBCT, and soft tissue streams.
+                    <h4>Clinical Interpretation</h4>
+                    Use the fused output as a decision-support style visualization rather than a final diagnostic conclusion.
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -176,7 +226,7 @@ elif page == "Live Demo":
 
         clinical_summary_box()
     else:
-        st.info("Use the sidebar button to run the live fusion demo.")
+        st.info("Upload optional preview images, then use the sidebar button to run the live fusion demo.")
 
 elif page == "Use Cases":
     use_case_tabs()

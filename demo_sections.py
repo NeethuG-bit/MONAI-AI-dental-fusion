@@ -9,13 +9,45 @@ def hero_section():
     st.markdown(
         """
         <div class="hero-shell">
-            <div class="hero-badge">Proof-of-Concept • Clinical Product Demo</div>
+            <div class="hero-badge">AUMTECH-style POC • Clinical Product Experience</div>
             <div class="hero-title">🦷 Dental AI Fusion Platform</div>
             <div class="hero-subtitle">
-                Multimodal dental imaging demo for panoramic X-ray, CBCT, and soft tissue
-                fusion. Built to present a product-oriented clinical workflow for diagnostics,
-                visualization, and treatment planning support.
+                Product-oriented multimodal fusion experience combining panoramic X-ray,
+                CBCT, and soft tissue views into a single clinical dashboard for
+                diagnostics, treatment planning, and product demonstration.
             </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def kpi_row():
+    cols = st.columns(4)
+    values = [
+        ("Modalities", "3 Inputs"),
+        ("Fusion Strategy", "Feature-Level"),
+        ("Inference", "Real-Time Demo"),
+        ("Mode", "Clinical POC"),
+    ]
+    for col, (label, value) in zip(cols, values):
+        with col:
+            st.markdown(
+                f"""
+                <div class="kpi-shell">
+                    <div class="kpi-label">{label}</div>
+                    <div class="kpi-value">{value}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+def workflow_banner():
+    st.markdown(
+        """
+        <div class="workflow-banner">
+            <strong>Workflow:</strong> Acquire multimodal inputs → normalize and align →
+            extract 2D/3D features → fuse into shared representation → visualize
+            clinically meaningful output.
         </div>
         """,
         unsafe_allow_html=True,
@@ -24,13 +56,13 @@ def hero_section():
 def overview_cards():
     section_title(
         "Executive Overview",
-        "A product-style summary of the workflow, value proposition, and clinical fit."
+        "Use this page to explain the product story before showing the live model."
     )
     cols = st.columns(3)
     items = [
-        ("Unified Visualization", "Bring panoramic, CBCT, and soft tissue views into one guided review experience."),
-        ("Clinical Workflow Support", "Reduce manual mental stitching across imaging modalities and improve treatment planning efficiency."),
-        ("Deployment Story", "Position the solution as MONAI-based today with future edge-ready or clinical deployment potential."),
+        ("Unified Visualization", "Present hard tissue and soft tissue context within one guided review experience."),
+        ("Clinical Workflow Support", "Reduce manual cross-referencing across modalities and improve planning efficiency."),
+        ("Deployment Narrative", "Position the solution as MONAI-based with future edge or clinical deployment pathways."),
     ]
     for col, (title, text) in zip(cols, items):
         with col:
@@ -39,13 +71,13 @@ def overview_cards():
 def challenge_cards():
     section_title(
         "Clinical Challenges",
-        "These directly mirror the user-facing problem framing expected in the POC."
+        "This mirrors the business and clinical framing in the PDF."
     )
     cols = st.columns(3)
     items = [
-        ("Fragmented Data Sources", "Separate review of panoramic, CBCT, and surface/soft tissue data slows interpretation."),
-        ("Limited Soft Tissue Context", "Traditional imaging workflows emphasize hard tissue but may not sufficiently unify soft tissue context."),
-        ("Time-Intensive Analysis", "Manual correlation across modalities depends heavily on clinician experience and time."),
+        ("Fragmented Data Sources", "Panoramic, CBCT, and soft tissue modalities are often reviewed independently."),
+        ("Limited Soft Tissue Context", "Treatment planning benefits from richer integration of hard and soft tissue information."),
+        ("Time-Intensive Analysis", "Manual synthesis of multiple image sources adds interpretation time and variability."),
     ]
     for col, (title, text) in zip(cols, items):
         with col:
@@ -54,13 +86,13 @@ def challenge_cards():
 def modalities_cards():
     section_title(
         "Imaging Modalities",
-        "The live demo uses synthetic sample data to represent these three input streams."
+        "The current demo uses synthetic data to simulate these sources."
     )
     cols = st.columns(3)
     items = [
-        ("2D Panoramic X-ray", "Provides broad contextual overview of dentition and maxillofacial structures."),
-        ("3D CBCT Volume", "Captures spatial and volumetric hard tissue information for planning and structural interpretation."),
-        ("Soft Tissue Surface", "Adds gingival and contour-aware context to support a more complete planning view."),
+        ("2D Panoramic X-ray", "High-level contextual overview of dental and maxillofacial structures."),
+        ("3D CBCT Volume", "Volumetric structural view for spatial interpretation and planning."),
+        ("Soft Tissue Surface", "Surface-aware context supporting esthetic and soft tissue considerations."),
     ]
     for col, (title, text) in zip(cols, items):
         with col:
@@ -69,16 +101,16 @@ def modalities_cards():
 def pipeline_cards():
     section_title(
         "Pipeline Architecture",
-        "Presenting the workflow as a product pipeline is important for matching the PDF’s expected demo structure."
+        "Present the product as an end-to-end workflow, not just a model runner."
     )
     pipeline = [
         ("1. Acquisition", "Collect panoramic, CBCT, and soft tissue inputs."),
-        ("2. Registration", "Prepare aligned multimodal representations for downstream analysis."),
-        ("3. Normalization", "Standardize modalities for model ingestion."),
-        ("4. Feature Extraction", "2D and 3D encoders extract modality-specific representations."),
-        ("5. Feature-Level Fusion", "Fuse shared information across modalities into a single representation."),
-        ("6. Reconstruction / Output", "Generate clinically reviewable fused output."),
-        ("7. Clinical Review", "Present results in a guided decision-support interface."),
+        ("2. Registration", "Align modalities into a common workflow representation."),
+        ("3. Normalization", "Standardize inputs for consistent model processing."),
+        ("4. Feature Extraction", "Use dedicated encoders for modality-specific features."),
+        ("5. Fusion", "Combine features into a shared multimodal representation."),
+        ("6. Reconstruction / Output", "Generate an interpretable fused output."),
+        ("7. Clinical Review", "Display results in a guided decision-support interface."),
     ]
     for title, text in pipeline:
         st.markdown(
@@ -89,23 +121,25 @@ def pipeline_cards():
 def upload_placeholders():
     section_title(
         "Clinical Input Console",
-        "These upload controls make the demo feel product-ready even if the current backend uses synthetic data."
+        "Use uploaded previews if available; otherwise the app falls back to synthetic demo data."
     )
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    c1, c2, c3 = st.columns(3)
+    with c1:
         st.markdown('<div class="upload-box">Panoramic Input</div>', unsafe_allow_html=True)
-        st.file_uploader("Upload panoramic image", type=["png", "jpg", "jpeg"], key="pan_upload")
-    with col2:
-        st.markdown('<div class="upload-box">CBCT Volume Placeholder</div>', unsafe_allow_html=True)
-        st.file_uploader("Upload CBCT slice/preview", type=["png", "jpg", "jpeg"], key="cbct_upload")
-    with col3:
+        pan_file = st.file_uploader("Upload panoramic image", type=["png", "jpg", "jpeg"], key="pan_upload")
+    with c2:
+        st.markdown('<div class="upload-box">CBCT Preview</div>', unsafe_allow_html=True)
+        cbct_file = st.file_uploader("Upload CBCT preview image", type=["png", "jpg", "jpeg"], key="cbct_upload")
+    with c3:
         st.markdown('<div class="upload-box">Soft Tissue Input</div>', unsafe_allow_html=True)
-        st.file_uploader("Upload soft tissue image", type=["png", "jpg", "jpeg"], key="soft_upload")
+        soft_file = st.file_uploader("Upload soft tissue image", type=["png", "jpg", "jpeg"], key="soft_upload")
+
+    return pan_file, cbct_file, soft_file
 
 def use_case_tabs():
     section_title(
         "Clinical Use Cases",
-        "The PDF highlights these as primary application areas for the platform."
+        "Map the platform to the exact use-case language from the POC."
     )
     tabs = st.tabs([
         "Orthodontic Planning",
@@ -115,25 +149,25 @@ def use_case_tabs():
     ])
 
     with tabs[0]:
-        st.markdown("Integrated hard and soft tissue context for tooth movement review, planning, and visual communication.")
+        st.markdown("Integrated hard and soft tissue context for planning, review, and treatment communication.")
     with tabs[1]:
-        st.markdown("3D bone context plus surface awareness for implant planning and safer structural interpretation.")
+        st.markdown("3D bone context plus fused visualization to support implant planning decisions.")
     with tabs[2]:
-        st.markdown("Position as an extensible architecture for TMJ and functional analysis workflows.")
+        st.markdown("Position the system as extensible for multimodal and functional analysis workflows.")
     with tabs[3]:
-        st.markdown("Use fused visualizations to support pre-operative simulation and planning discussions.")
+        st.markdown("Use fused visualizations to support procedural planning and clinical walkthroughs.")
 
 def platform_cards():
     section_title(
         "Platform Layers",
-        "A product-style explanation of how the system should be narrated during demo."
+        "Explain the system in product architecture language during the client demo."
     )
     cols = st.columns(4)
     items = [
-        ("MONAI Layer", "Medical imaging transforms, architecture support, and inference pipeline."),
-        ("Fusion Layer", "2D/3D/soft tissue encoders combining into a unified representation."),
-        ("Clinical UI Layer", "Guided interface for reviewing results rather than inspecting code or tensors."),
-        ("Deployment Layer", "Cloud demo now; edge or clinic-ready positioning as future deployment path."),
+        ("MONAI Layer", "Medical imaging transforms, architecture support, and inference workflow."),
+        ("Fusion Layer", "2D + 3D + soft tissue feature fusion into a shared output representation."),
+        ("Clinical UI Layer", "Decision-support interface for clinicians, operators, and demo stakeholders."),
+        ("Deployment Layer", "Cloud-hosted POC today with edge/on-prem positioning as future pathway."),
     ]
     for col, (title, text) in zip(cols, items):
         with col:
@@ -142,14 +176,14 @@ def platform_cards():
 def outcomes_cards():
     section_title(
         "Expected Outcomes",
-        "These cards help align the app with the PDF’s business and clinical language."
+        "Use these cards to reinforce client-facing value."
     )
     cols = st.columns(4)
     items = [
-        ("Faster Planning", "Reduce time spent correlating imaging sources manually."),
-        ("Improved Visualization", "Present more complete multimodal context in one place."),
-        ("Clinical Support", "Frame the system as a decision-support tool for treatment planning."),
-        ("Demo Credibility", "Make the POC feel closer to a deployable product experience."),
+        ("Faster Planning", "Reduce manual cross-modality review time."),
+        ("Improved Visualization", "Provide more comprehensive multimodal anatomical context."),
+        ("Clinical Support", "Support treatment planning with guided review outputs."),
+        ("POC Credibility", "Show a product direction that feels closer to deployment."),
     ]
     for col, (title, text) in zip(cols, items):
         with col:
@@ -159,11 +193,11 @@ def clinical_summary_box():
     st.markdown(
         """
         <div class="clinical-note">
-        <strong>Clinical Summary</strong><br>
-        This demo showcases a multimodal fusion experience rather than a validated clinical device.
-        Use it to demonstrate product direction, workflow integration, and UI/UX readiness while
-        clearly positioning advanced elements such as real registration, temporal modeling, and
-        deployment optimization as roadmap or architecture components.
+        <strong>Clinical Product Positioning</strong><br>
+        This app demonstrates the fusion workflow, clinical UI direction, and decision-support experience.
+        Advanced elements such as validated registration, temporal modeling, device integration, and
+        production deployment can be presented as architecture and roadmap layers rather than overstated
+        as fully live features.
         </div>
         """,
         unsafe_allow_html=True,
@@ -173,9 +207,9 @@ def footer_note():
     st.markdown(
         """
         <div class="footer-note">
-        Proof-of-concept note: the current live implementation uses synthetic demo data and a fusion
-        demonstration model. Product framing, use cases, pipeline stages, and platform architecture
-        are included to match the expected POC presentation experience.
+        Proof-of-concept note: this live implementation uses synthetic demo data for fusion visualization.
+        Product framing, workflow sections, and clinical use-case positioning are included to match the
+        expected demo and presentation experience.
         </div>
         """,
         unsafe_allow_html=True,
