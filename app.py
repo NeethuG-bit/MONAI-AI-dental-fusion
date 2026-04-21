@@ -16,11 +16,12 @@ from demo_sections import (
     workflow_banner,
     overview_cards,
     challenge_cards,
-    modalities_cards,
+    modality_icon_cards,
     pipeline_cards,
-    upload_placeholders,
+    upload_console,
     use_case_tabs,
     platform_cards,
+    architecture_page_cards,
     outcomes_cards,
     clinical_summary_box,
     footer_note,
@@ -36,17 +37,17 @@ st.set_page_config(
 st.markdown(load_css(), unsafe_allow_html=True)
 
 with st.sidebar:
-    st.title("Navigation")
+    st.title("Platform Navigation")
     page = st.radio(
-        "Go to section",
-        ["Overview", "Live Demo", "Use Cases", "Platform"]
+        "Select view",
+        ["Overview", "Live Demo", "Use Cases", "Architecture", "Platform"]
     )
     st.markdown("---")
     run_demo = st.button("Run Fusion Demo")
     show_shapes = st.toggle("Show tensor shapes", value=False)
     use_colored_output = st.toggle("Colored output", value=True)
     st.markdown("---")
-    st.caption("Client-facing clinical product demo")
+    st.caption("Premium client-facing POC")
 
 hero_section()
 kpi_row()
@@ -61,7 +62,7 @@ def image_to_gray_array(uploaded_file, target_size=(64, 64)):
 if page == "Overview":
     overview_cards()
     challenge_cards()
-    modalities_cards()
+    modality_icon_cards()
     pipeline_cards()
     outcomes_cards()
     clinical_summary_box()
@@ -69,33 +70,32 @@ if page == "Overview":
 elif page == "Live Demo":
     section_title(
         "Live Fusion Dashboard",
-        "Preview uploads for a product-like experience, then run the current fusion demo."
+        "A clinical-style demo workspace for presenting the multimodal workflow."
     )
 
-    pan_file, cbct_file, soft_file = upload_placeholders()
+    pan_file, cbct_file, soft_file = upload_console()
 
     preview_cols = st.columns(3)
-
     with preview_cols[0]:
         st.markdown('<div class="preview-card"><strong>Panoramic Preview</strong></div>', unsafe_allow_html=True)
         if pan_file:
             st.image(pan_file, use_container_width=True)
         else:
-            st.info("No panoramic upload provided")
+            st.info("No panoramic preview uploaded")
 
     with preview_cols[1]:
         st.markdown('<div class="preview-card"><strong>CBCT Preview</strong></div>', unsafe_allow_html=True)
         if cbct_file:
             st.image(cbct_file, use_container_width=True)
         else:
-            st.info("No CBCT preview provided")
+            st.info("No CBCT preview uploaded")
 
     with preview_cols[2]:
         st.markdown('<div class="preview-card"><strong>Soft Tissue Preview</strong></div>', unsafe_allow_html=True)
         if soft_file:
             st.image(soft_file, use_container_width=True)
         else:
-            st.info("No soft tissue upload provided")
+            st.info("No soft tissue preview uploaded")
 
     st.markdown("---")
 
@@ -103,7 +103,6 @@ elif page == "Live Demo":
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
-            # Use uploads if available, otherwise synthetic fallback
             if pan_file:
                 pan = image_to_gray_array(pan_file, target_size=(64, 64))
             else:
@@ -161,7 +160,14 @@ elif page == "Live Demo":
 
         cmap = "viridis" if use_colored_output else "gray"
 
-        section_title("Fusion Visualization", "Synthetic or uploaded-preview-driven demonstration output")
+        section_title("Fusion Visualization", "Decision-support style review of synthetic or uploaded-preview-driven data")
+
+        # Top quick KPI row for live demo
+        live_k1, live_k2, live_k3, live_k4 = st.columns(4)
+        live_k1.metric("Processing", "<1s demo")
+        live_k2.metric("Inputs", "3")
+        live_k3.metric("Execution", "CPU")
+        live_k4.metric("Output Mode", "Fused Volume")
 
         result_cols = st.columns(4)
         visuals = [
@@ -200,8 +206,8 @@ elif page == "Live Demo":
             st.markdown(
                 """
                 <div class="summary-card">
-                    <h4>Inference Summary</h4>
-                    CPU-based cloud demo optimized for client-facing presentation and product walkthrough.
+                    <h4>Clinical Summary</h4>
+                    Unified review of multimodal inputs in one guided interface for planning-oriented interpretation.
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -210,8 +216,8 @@ elif page == "Live Demo":
             st.markdown(
                 """
                 <div class="summary-card">
-                    <h4>Clinical Interpretation</h4>
-                    Use the fused output as a decision-support style visualization rather than a final diagnostic conclusion.
+                    <h4>Product Narrative</h4>
+                    Present this as a decision-support and workflow integration platform, not just a model output screen.
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -226,15 +232,20 @@ elif page == "Live Demo":
 
         clinical_summary_box()
     else:
-        st.info("Upload optional preview images, then use the sidebar button to run the live fusion demo.")
+        st.info("Upload optional previews, then use the sidebar button to run the live fusion demo.")
 
 elif page == "Use Cases":
     use_case_tabs()
     outcomes_cards()
 
+elif page == "Architecture":
+    architecture_page_cards()
+    pipeline_cards()
+    clinical_summary_box()
+
 elif page == "Platform":
     platform_cards()
-    pipeline_cards()
+    outcomes_cards()
     clinical_summary_box()
 
 footer_note()

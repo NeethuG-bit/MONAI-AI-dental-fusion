@@ -3,15 +3,15 @@ def load_css():
     <style>
     .stApp {
         background:
-            radial-gradient(circle at top right, rgba(34,211,238,0.10), transparent 22%),
-            radial-gradient(circle at top left, rgba(99,102,241,0.12), transparent 24%),
-            linear-gradient(180deg, #050814 0%, #0a1020 100%);
-        color: #edf2f7;
+            radial-gradient(circle at 85% 8%, rgba(56, 189, 248, 0.12), transparent 20%),
+            radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.15), transparent 24%),
+            linear-gradient(180deg, #050814 0%, #091120 100%);
+        color: #eef2ff;
     }
 
     .block-container {
         max-width: 1280px;
-        padding-top: 1.4rem;
+        padding-top: 1.2rem;
         padding-bottom: 3rem;
     }
 
@@ -25,20 +25,34 @@ def load_css():
     }
 
     .hero-shell {
-        padding: 2.4rem 2.2rem;
+        padding: 2.6rem 2.3rem;
         border-radius: 30px;
-        background: linear-gradient(135deg, rgba(16,24,45,0.97), rgba(8,13,28,0.96));
-        border: 1px solid rgba(125, 144, 255, 0.18);
-        box-shadow: 0 18px 60px rgba(0,0,0,0.34);
+        background:
+            linear-gradient(135deg, rgba(17,24,39,0.96), rgba(10,15,29,0.97));
+        border: 1px solid rgba(129, 140, 248, 0.18);
+        box-shadow: 0 24px 70px rgba(0,0,0,0.38);
         margin-bottom: 1.4rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-shell::after {
+        content: "";
+        position: absolute;
+        right: -60px;
+        top: -40px;
+        width: 240px;
+        height: 240px;
+        background: radial-gradient(circle, rgba(34,211,238,0.16), transparent 60%);
+        pointer-events: none;
     }
 
     .hero-badge {
         display: inline-block;
         padding: 0.35rem 0.8rem;
         border-radius: 999px;
-        background: rgba(34, 211, 238, 0.12);
-        border: 1px solid rgba(34, 211, 238, 0.20);
+        background: rgba(34, 211, 238, 0.10);
+        border: 1px solid rgba(34, 211, 238, 0.22);
         color: #a5f3fc;
         font-size: 0.82rem;
         font-weight: 700;
@@ -46,8 +60,8 @@ def load_css():
     }
 
     .hero-title {
-        font-size: 3.15rem;
-        font-weight: 850;
+        font-size: 3.2rem;
+        font-weight: 860;
         line-height: 1.03;
         margin-bottom: 0.7rem;
         color: #ffffff;
@@ -55,15 +69,15 @@ def load_css():
 
     .hero-subtitle {
         font-size: 1.08rem;
-        line-height: 1.7;
+        line-height: 1.75;
         color: #c6d3f5;
-        max-width: 920px;
+        max-width: 940px;
     }
 
     .section-title {
-        font-size: 1.58rem;
-        font-weight: 760;
-        margin-top: 0.4rem;
+        font-size: 1.62rem;
+        font-weight: 780;
+        margin-top: 0.5rem;
         margin-bottom: 1rem;
         color: #ffffff;
     }
@@ -96,6 +110,20 @@ def load_css():
         font-size: 0.95rem;
         line-height: 1.6;
         color: #d7dceb;
+    }
+
+    .icon-card {
+        background: linear-gradient(135deg, rgba(15,23,42,0.97), rgba(10,16,31,0.97));
+        border: 1px solid rgba(125, 144, 255, 0.14);
+        border-radius: 22px;
+        padding: 1rem;
+        min-height: 170px;
+        margin-bottom: 1rem;
+    }
+
+    .icon-emoji {
+        font-size: 1.5rem;
+        margin-bottom: 0.55rem;
     }
 
     .mini-tag {
@@ -192,6 +220,21 @@ def load_css():
         color: #ffffff;
         font-size: 1rem;
         font-weight: 800;
+    }
+
+    .architecture-node {
+        background: rgba(13,19,36,0.96);
+        border: 1px solid rgba(125,144,255,0.16);
+        border-radius: 18px;
+        padding: 1rem;
+        min-height: 150px;
+        margin-bottom: 1rem;
+    }
+
+    .architecture-node h4 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        color: #ffffff;
     }
 
     div[data-testid="stMetric"] {
