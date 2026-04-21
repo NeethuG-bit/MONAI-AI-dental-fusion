@@ -106,7 +106,7 @@ def pipeline_cards():
         ("3. Feature Extraction", "Use dedicated 2D and 3D encoders for modality-specific representations."),
         ("4. Fusion Engine", "Combine modality features into a shared latent representation."),
         ("5. Reconstruction / Visualization", "Generate a clinically reviewable fused output."),
-        ("6. Clinical Dashboard", "Present results within a decision-support style interface."),
+        ("6. Clinical Dashboard", "Present results through a decision-support style interface."),
     ]
     for title, text in pipeline:
         st.markdown(

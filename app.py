@@ -59,6 +59,15 @@ def image_to_gray_array(uploaded_file, target_size=(64, 64)):
     arr = (arr / 255.0) * 2000 - 1000
     return arr
 
+def get_slice(img):
+    squeezed = np.asarray(img).squeeze()
+    if squeezed.ndim == 2:
+        return squeezed
+    if squeezed.ndim == 3:
+        mid = squeezed.shape[-1] // 2
+        return squeezed[:, :, mid]
+    raise ValueError(f"Unsupported array shape for display: {squeezed.shape}")
+
 if page == "Overview":
     overview_cards()
     challenge_cards()
@@ -146,23 +155,15 @@ elif page == "Live Demo":
 
         if show_shapes:
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Panoramic", str(pan_np.shape))
-            m2.metric("CBCT", str(cbct_np.shape))
-            m3.metric("Soft Tissue", str(soft_np.shape))
-            m4.metric("Output", str(output_np.shape))
-
-        def get_slice(img):
-            if img.ndim == 2:
-                return img
-            if img.ndim == 3:
-                return img[:, :, img.shape[2] // 2]
-            return img
+            m1.metric("Panoramic", str(np.asarray(pan_np).shape))
+            m2.metric("CBCT", str(np.asarray(cbct_np).shape))
+            m3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
+            m4.metric("Output", str(np.asarray(output_np).shape))
 
         cmap = "viridis" if use_colored_output else "gray"
 
         section_title("Fusion Visualization", "Decision-support style review of synthetic or uploaded-preview-driven data")
 
-        # Top quick KPI row for live demo
         live_k1, live_k2, live_k3, live_k4 = st.columns(4)
         live_k1.metric("Processing", "<1s demo")
         live_k2.metric("Inputs", "3")
