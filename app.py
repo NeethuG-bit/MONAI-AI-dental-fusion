@@ -142,21 +142,20 @@ elif page == "Live Demo":
     section_title("Live Fusion Dashboard", "Clinical-style demo workspace")
 
     st.markdown("### 📖 Imaging Modalities")
-
     st.markdown(
         """
-    🦷 **Panoramic (OPG)**  
-    <span title='2D full jaw X-ray showing teeth, jaw, and structure'>ℹ️</span>
+🦷 **Panoramic (OPG)**  
+<span title='2D full jaw X-ray showing teeth, jaw, and structure'>ℹ️</span>
 
-    🧊 **CBCT**  
-    <span title='3D cone beam CT scan used for volumetric dental imaging'>ℹ️</span>
+🧊 **CBCT**  
+<span title='3D cone beam CT scan used for volumetric dental imaging'>ℹ️</span>
 
-    🧠 **Soft Tissue**  
-    <span title='Facial or soft tissue surface representation for esthetic analysis'>ℹ️</span>
+🧠 **Soft Tissue**  
+<span title='Facial or soft tissue surface representation for esthetic analysis'>ℹ️</span>
 
-    🔗 **Fusion**  
-    <span title='Combining multiple modalities into a unified AI representation'>ℹ️</span>
-    """,
+🔗 **Fusion**  
+<span title='Combining multiple modalities into a unified AI representation'>ℹ️</span>
+""",
         unsafe_allow_html=True
     )
 
@@ -165,21 +164,16 @@ elif page == "Live Demo":
     st.info("📁 Upload images OR run demo with built-in synthetic data")
 
     preview_cols = st.columns(3)
-
     if pan_file:
         preview_cols[0].image(pan_file, caption="Panoramic Preview")
-
     if cbct_file:
         preview_cols[1].image(cbct_file, caption="CBCT Preview")
-
     if soft_file:
         preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
 
     if run_demo:
-        # 🎤 Presentation steps
         if presentation_mode:
             st.markdown("### 🔄 Processing Pipeline")
-
             step_box = st.empty()
             progress = st.progress(0)
 
@@ -200,8 +194,6 @@ elif page == "Live Demo":
 
             step_box.success("✅ Processing Complete")
             progress.empty()
-
-        # ⏳ Progress animation for non-presentation mode
         else:
             progress = st.progress(0)
             for i in range(100):
@@ -265,21 +257,13 @@ elif page == "Live Demo":
         st.success("Fusion complete. Generating visual intelligence...")
         st.caption("Multimodal visualization output from the fusion engine.")
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
-        c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
-        c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
-        c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
-
-    with st.container():
-        st.markdown("#### 📊 Visualization")
-
-        c1, c2, c3, c4 = st.columns(4)
-
-        c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
-        c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
-        c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
-        c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
+        with st.container():
+            st.markdown("#### 📊 Visualization")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
+            c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
+            c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
+            c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
         # ---------------- SLICE VIEWER ----------------
         st.markdown("---")
@@ -392,7 +376,7 @@ Proof-of-concept demo using synthetic data.
         clinical_summary_box()
 
     else:
-        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in demo data.")
+        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in synthetic data.")
 
 elif page == "Use Cases":
     use_case_tabs()
