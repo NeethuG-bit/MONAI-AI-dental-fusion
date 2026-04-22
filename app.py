@@ -50,6 +50,55 @@ with st.sidebar:
     show_heatmap = st.toggle("Show AI Heatmap", value=True)
     presentation_mode = st.toggle("🎤 Presentation Mode", value=False)
 
+        st.markdown("---")
+        st.markdown("## 📘 Term Guide")
+
+        panel = st.session_state.get("panel")
+
+        if panel == "pan":
+          st.markdown("### 🦷 Panoramic (OPG)")
+          st.info("""
+    A panoramic radiograph is a 2D dental X-ray that shows:
+    - upper jaw
+    - lower jaw
+    - full dentition
+    - surrounding jaw structures
+
+    Common uses:
+    - orthodontic evaluation
+    - impacted tooth review
+    - implant planning
+    """)
+
+        elif panel == "cbct":
+            st.markdown("### 🧊 CBCT")
+            st.info("""
+    CBCT stands for Cone Beam Computed Tomography.
+
+    It provides:
+    - 3D volumetric imaging
+    - bone structure detail
+    - tooth root position
+    - spatial planning support
+    """)
+
+        elif panel == "soft":
+            st.markdown("### 🧠 Soft Tissue")
+            st.info("""
+    Soft tissue imaging helps visualize:
+    - facial surface
+    - contour
+    - soft tissue profile
+    - esthetic planning context
+    """)
+
+        elif panel == "fusion":
+            st.markdown("### 🔗 Fusion")
+            st.info("""
+    Fusion combines information from multiple imaging modalities
+    into a single unified representation for review and planning.
+    """)
+
 # ---------------- HEADER ----------------
 hero_section()
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
@@ -92,6 +141,23 @@ if page == "Overview":
 
 elif page == "Live Demo":
     section_title("Live Fusion Dashboard", "Clinical-style demo workspace")
+
+    st.markdown("### 📖 Click a term to learn more")
+
+    g1, g2, g3, g4 = st.columns(4)
+
+    with g1:
+        if st.button("🦷 Panoramic (OPG)"):
+            st.session_state["panel"] = "pan"
+    with g2:
+        if st.button("🧊 CBCT"):
+            st.session_state["panel"] = "cbct"
+    with g3:
+        if st.button("🧠 Soft Tissue"):
+            st.session_state["panel"] = "soft"
+    with g4:
+        if st.button("🔗 Fusion"):
+            st.session_state["panel"] = "fusion"
     pan_file, cbct_file, soft_file = upload_console()
 
     if run_demo:
