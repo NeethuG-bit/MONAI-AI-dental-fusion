@@ -141,24 +141,39 @@ if page == "Overview":
 elif page == "Live Demo":
     section_title("Live Fusion Dashboard", "Clinical-style demo workspace")
 
-    st.markdown("### 📖 Click a term to learn more")
+    st.markdown("### 📖 Imaging Modalities")
 
-    g1, g2, g3, g4 = st.columns(4)
+    st.markdown(
+        """
+    🦷 **Panoramic (OPG)**  
+    <span title='2D full jaw X-ray showing teeth, jaw, and structure'>ℹ️</span>
 
-    with g1:
-        if st.button("🦷 Panoramic (OPG)"):
-            st.session_state["panel"] = "pan"
-    with g2:
-        if st.button("🧊 CBCT"):
-            st.session_state["panel"] = "cbct"
-    with g3:
-        if st.button("🧠 Soft Tissue"):
-            st.session_state["panel"] = "soft"
-    with g4:
-        if st.button("🔗 Fusion"):
-            st.session_state["panel"] = "fusion"
+    🧊 **CBCT**  
+    <span title='3D cone beam CT scan used for volumetric dental imaging'>ℹ️</span>
+
+    🧠 **Soft Tissue**  
+    <span title='Facial or soft tissue surface representation for esthetic analysis'>ℹ️</span>
+
+    🔗 **Fusion**  
+    <span title='Combining multiple modalities into a unified AI representation'>ℹ️</span>
+    """,
+        unsafe_allow_html=True
+    )
 
     pan_file, cbct_file, soft_file = upload_console()
+
+    st.info("📁 Upload images OR run demo with built-in synthetic data")
+
+    preview_cols = st.columns(3)
+
+    if pan_file:
+        preview_cols[0].image(pan_file, caption="Panoramic Preview")
+
+    if cbct_file:
+        preview_cols[1].image(cbct_file, caption="CBCT Preview")
+
+    if soft_file:
+        preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
 
     if run_demo:
         # 🎤 Presentation steps
@@ -245,9 +260,22 @@ elif page == "Live Demo":
         # ---------------- RESULTS ----------------
         st.markdown("---")
         st.markdown("## 📊 Generated Results")
-        st.markdown("### 🧾 Fusion Results")
+        st.markdown("## 🧾 AI Fusion Results")
+        st.markdown("### 🤖 AI Interpretation Layer")
+        st.success("Fusion complete. Generating visual intelligence...")
+        st.caption("Multimodal visualization output from the fusion engine.")
 
         c1, c2, c3, c4 = st.columns(4)
+        c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
+        c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
+        c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
+        c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
+
+    with st.container():
+        st.markdown("#### 📊 Visualization")
+
+        c1, c2, c3, c4 = st.columns(4)
+
         c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
         c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
         c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
