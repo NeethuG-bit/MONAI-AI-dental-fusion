@@ -1,4 +1,5 @@
 import io
+import time
 import numpy as np
 from PIL import Image
 import streamlit as st
@@ -33,6 +34,7 @@ st.set_page_config(
     layout="wide"
 )
 
+# ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.title("Platform Navigation")
     page = st.radio(
@@ -46,13 +48,19 @@ with st.sidebar:
     mode = st.selectbox("Demo Mode", ["Quick Demo", "Detailed Analysis"])
     intensity = st.slider("Output Enhancement", 0.5, 2.0, 1.0)
     show_heatmap = st.toggle("Show AI Heatmap", value=True)
+    presentation_mode = st.toggle("🎤 Presentation Mode", value=False)
 
+# ---------------- HEADER ----------------
 hero_section()
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
+
+if presentation_mode:
+    st.success("Live AI Demonstration Mode Active")
 
 kpi_row()
 workflow_banner()
 
+# ---------------- HELPERS ----------------
 def image_to_gray_array(uploaded_file, target_size=(64, 64)):
     img = Image.open(uploaded_file).convert("L").resize(target_size)
     arr = np.array(img).astype(np.float32)
@@ -66,8 +74,9 @@ def get_slice(img):
     if squeezed.ndim == 3:
         mid = squeezed.shape[-1] // 2
         return squeezed[:, :, mid]
-    raise ValueError(f"Unsupported array shape for display: {squeezed.shape}")
+    raise ValueError(f"Unsupported array shape: {squeezed.shape}")
 
+# ---------------- PAGES ----------------
 if page == "Overview":
     overview_cards()
     challenge_cards()
@@ -81,28 +90,35 @@ elif page == "Live Demo":
     pan_file, cbct_file, soft_file = upload_console()
 
     if run_demo:
+
+        # 🎤 Presentation steps
+        if presentation_mode:
+            st.markdown("### 🔄 Processing Steps")
+            st.write("1. Loading multimodal inputs...")
+            st.write("2. Applying transformations...")
+            st.write("3. Running fusion model...")
+            st.write("4. Generating output...")
+
+        # ⏳ Progress animation
         progress = st.progress(0)
         for i in range(100):
+            time.sleep(0.01)
             progress.progress(i + 1)
-            
+
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
-            if pan_file:
-                pan = image_to_gray_array(pan_file, target_size=(64, 64))
-            else:
-                pan = generate_panoramic((64, 64))
-
+            pan = image_to_gray_array(pan_file) if pan_file else generate_panoramic((64, 64))
+            
             if cbct_file:
-                cbct_2d = image_to_gray_array(cbct_file, target_size=(64, 64))
+                cbct_2d = image_to_gray_array(cbct_file)
                 cbct = np.repeat(cbct_2d[:, :, None], 32, axis=2)
             else:
                 cbct = generate_cbct((64, 64, 32))
 
             if soft_file:
                 soft_img = Image.open(soft_file).convert("L").resize((64, 64))
-                soft = np.array(soft_img).astype(np.float32)
-                soft = (soft / 255.0) * 15.0
+                soft = (np.array(soft_img).astype(np.float32) / 255.0) * 15.0
             else:
                 soft = generate_soft_tissue((64, 64))
 
@@ -118,24 +134,18 @@ elif page == "Live Demo":
             with torch.no_grad():
                 output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
 
+        progress.empty()
         st.success("Fusion inference completed successfully")
 
+        # ---------------- DATA ----------------
         pan_np = pan_tensor.cpu().numpy()[0, 0]
         cbct_np = cbct_tensor.cpu().numpy()[0, 0]
         soft_np = soft_tensor.cpu().numpy()[0, 0]
-        output_np = output_tensor.cpu().numpy()[0, 0]
-
-        output_np = output_np * intensity
-
-        if show_shapes:
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Panoramic", str(np.asarray(pan_np).shape))
-            c2.metric("CBCT", str(np.asarray(cbct_np).shape))
-            c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
-            c4.metric("Output", str(np.asarray(output_np).shape))
+        output_np = output_tensor.cpu().numpy()[0, 0] * intensity
 
         cmap = "viridis" if use_colored_output else "gray"
 
+        # ---------------- RESULTS ----------------
         st.markdown("### 🧾 Fusion Results")
 
         c1, c2, c3, c4 = st.columns(4)
@@ -144,65 +154,54 @@ elif page == "Live Demo":
         c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
         c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
-        fig, axs = plt.subplots(1, 4, figsize=(15, 4))
-        axs[0].imshow(get_slice(pan_np), cmap=cmap)
-        axs[0].set_title("Panoramic")
-        axs[1].imshow(get_slice(cbct_np), cmap=cmap)
-        axs[1].set_title("CBCT")
-        axs[2].imshow(get_slice(soft_np), cmap=cmap)
-        axs[2].set_title("Soft Tissue")
-        axs[3].imshow(get_slice(output_np), cmap=cmap)
-        axs[3].set_title("Fused Output")
-
-        for ax in axs:
-            ax.axis("off")
-
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=180)
-        buf.seek(0)
-
+        # ---------------- SLICE VIEWER ----------------
+        st.markdown("---")
         st.markdown("### 🧊 CBCT Slice Explorer")
 
-        slice_idx = st.slider(
-            "Select Slice",
-            0,
-            cbct_np.shape[2] - 1,
-            cbct_np.shape[2] // 2
-        )
+        slice_idx = st.slider("Select Slice", 0, cbct_np.shape[2] - 1, cbct_np.shape[2] // 2)
 
-        fig3, ax = plt.subplots()
-        ax.imshow(cbct_np[:, :, slice_idx], cmap="gray")
-        ax.set_title(f"CBCT Slice {slice_idx}")
-        ax.axis("off")
+        fig_slice, ax1 = plt.subplots()
+        ax1.imshow(cbct_np[:, :, slice_idx], cmap=cmap)
+        ax1.set_title(f"CBCT Slice {slice_idx}")
+        ax1.axis("off")
+        st.pyplot(fig_slice)
 
-        st.pyplot(fig3)
-
-
+        # ---------------- REGION DETECTION ----------------
+        st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
 
         img = get_slice(output_np)
         mask = img > img.mean()
 
-        fig4, ax = plt.subplots()
-        ax.imshow(img, cmap="gray")
-        ax.imshow(mask, cmap="jet", alpha=0.3)
-        ax.axis("off")
+        fig_detect, ax2 = plt.subplots()
+        ax2.imshow(img, cmap="gray")
+        ax2.imshow(mask, cmap="jet", alpha=0.3)
+        ax2.axis("off")
+        st.pyplot(fig_detect)
 
-        st.pyplot(fig4)
-
-    
+        # ---------------- HEATMAP ----------------
         if show_heatmap:
+            st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
 
             heatmap = get_slice(output_np)
 
-            fig2, ax = plt.subplots()
-            ax.imshow(get_slice(cbct_np), cmap="gray")  # base image
-            ax.imshow(heatmap, cmap="jet", alpha=0.4)   # overlay
-            ax.set_title("CBCT + AI Attention")
-            ax.axis("off")
+            fig_heat, ax3 = plt.subplots()
+            ax3.imshow(get_slice(cbct_np), cmap="gray")
+            ax3.imshow(heatmap, cmap="jet", alpha=0.4)
+            ax3.set_title("Simulated AI Attention (Demo)")
+            ax3.axis("off")
+            st.pyplot(fig_heat)
 
-            st.pyplot(fig2)
+        # ---------------- DOWNLOAD ----------------
+        fig_dl, axs = plt.subplots(1, 4, figsize=(15, 4))
+        for i, img in enumerate([pan_np, cbct_np, soft_np, output_np]):
+            axs[i].imshow(get_slice(img), cmap=cmap)
+            axs[i].axis("off")
+
+        buf = io.BytesIO()
+        fig_dl.savefig(buf, format="png", bbox_inches="tight", dpi=180)
+        buf.seek(0)
 
         st.download_button(
             "Download Demo Figure",
@@ -211,60 +210,45 @@ elif page == "Live Demo":
             mime="image/png",
         )
 
+        # ---------------- INSIGHTS ----------------
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
-• Fused output highlights structural + soft tissue correlation  
-• Potential regions of interest can be derived from intensity patterns  
-• Demonstrates multimodal alignment capability  
-• Supports future diagnostic and planning workflows  
+• Multimodal fusion highlights structural + soft tissue alignment  
+• Supports visualization for planning workflows  
+• Demonstrates cross-modality integration  
 """)
 
         st.markdown("### 📊 Model Indicators")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Fusion Confidence", "87%", "+3%")
-        c2.metric("Data Alignment", "92%", "+5%")
-        c3.metric("Inference Time", "< 1 sec")
+        c1.metric("Fusion Quality", "High")
+        c2.metric("Modalities Used", "3")
+        c3.metric("Execution Mode", "Real-time")
 
         if mode == "Detailed Analysis":
             st.markdown("### 🔍 Detailed Analysis Mode")
-            st.write("Feature maps, intermediate outputs, and advanced review panels can be added here.")
+            st.write("Feature maps and advanced outputs can be added here.")
 
+        # ---------------- REPORT ----------------
         report_text = """
 Dental AI Fusion Report
 
-Inputs:
-- Panoramic
-- CBCT
-- Soft Tissue
+System:
+- MONAI-based multimodal fusion pipeline
 
-Output:
-- Multimodal fused visualization generated
-
-Observations:
-- Structural and soft tissue integration visible
-- Suitable for planning workflows
+Capabilities:
+- Cross-modality alignment
+- Integrated visualization
+- Interactive exploration
 
 Note:
-This is a proof-of-concept output.
+Proof-of-concept demo using synthetic data.
 """
-        st.download_button(
-            "📄 Download Clinical Report",
-            data=report_text,
-            file_name="fusion_report.txt",
-        )
+        st.download_button("📄 Download Clinical Report", data=report_text)
 
-        st.markdown("### 🚀 Future Roadmap")
-        st.success("""
-• DICOM integration  
-• Real patient data pipeline  
-• Model training on clinical datasets  
-• Edge deployment in dental clinics  
-• Automated diagnosis suggestions  
-""")
-
-        st.caption("⚠️ This demo uses synthetic/sample data for visualization purposes only. Not for clinical use.")
+        st.caption("⚠️ Demo uses synthetic data. Not for clinical use.")
 
         clinical_summary_box()
+
     else:
         st.info("Click 'Run Fusion Demo' to start")
 
@@ -281,5 +265,13 @@ elif page == "Platform":
     platform_cards()
     outcomes_cards()
     clinical_summary_box()
+
+# ---------------- GLOBAL SUMMARY ----------------
+st.markdown("### 🏁 Demo Summary")
+st.success("""
+This platform demonstrates how multimodal dental imaging can be unified into a 
+single AI-assisted workflow, enabling enhanced visualization and future-ready 
+clinical decision support.
+""")
 
 footer_note()
