@@ -113,8 +113,8 @@ elif page == "Live Demo":
             for text, prog in steps:
                 step_box.info(text)
                 for i in range(prog):
-                time.sleep(0.01)
-                progress.progress(i + 1)
+                    time.sleep(0.01)
+                    progress.progress(i + 1)
 
             step_box.success("✅ Processing Complete")
             progress.empty()
