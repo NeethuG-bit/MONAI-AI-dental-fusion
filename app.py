@@ -45,6 +45,7 @@ with st.sidebar:
     use_colored_output = st.toggle("Colored output", value=True)
     mode = st.selectbox("Demo Mode", ["Quick Demo", "Detailed Analysis"])
     intensity = st.slider("Output Enhancement", 0.5, 2.0, 1.0)
+    show_heatmap = st.toggle("Show AI Heatmap", value=True)
 
 hero_section()
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
@@ -80,6 +81,10 @@ elif page == "Live Demo":
     pan_file, cbct_file, soft_file = upload_console()
 
     if run_demo:
+        progress = st.progress(0)
+        for i in range(100):
+            progress.progress(i + 1)
+            
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
@@ -155,6 +160,49 @@ elif page == "Live Demo":
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight", dpi=180)
         buf.seek(0)
+
+        st.markdown("### 🧊 CBCT Slice Explorer")
+
+        slice_idx = st.slider(
+            "Select Slice",
+            0,
+            cbct_np.shape[2] - 1,
+            cbct_np.shape[2] // 2
+        )
+
+        fig3, ax = plt.subplots()
+        ax.imshow(cbct_np[:, :, slice_idx], cmap="gray")
+        ax.set_title(f"CBCT Slice {slice_idx}")
+        ax.axis("off")
+
+        st.pyplot(fig3)
+
+
+        st.markdown("### 🎯 Detected Region (Simulated)")
+
+        img = get_slice(output_np)
+        mask = img > img.mean()
+
+        fig4, ax = plt.subplots()
+        ax.imshow(img, cmap="gray")
+        ax.imshow(mask, cmap="jet", alpha=0.3)
+        ax.axis("off")
+
+        st.pyplot(fig4)
+
+    
+        if show_heatmap:
+            st.markdown("### 🔥 AI Attention Heatmap")
+
+            heatmap = get_slice(output_np)
+
+            fig2, ax = plt.subplots()
+            ax.imshow(get_slice(cbct_np), cmap="gray")  # base image
+            ax.imshow(heatmap, cmap="jet", alpha=0.4)   # overlay
+            ax.set_title("CBCT + AI Attention")
+            ax.axis("off")
+
+            st.pyplot(fig2)
 
         st.download_button(
             "Download Demo Figure",
