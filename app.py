@@ -54,6 +54,11 @@ with st.sidebar:
 hero_section()
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
 
+colA, colB = st.columns([6, 1])
+
+with colB:
+    st.markdown("🟢 **System Online**")
+
 if presentation_mode:
     st.success("Live AI Demonstration Mode Active")
 
@@ -93,9 +98,10 @@ elif page == "Live Demo":
 
         # 🎤 Presentation steps
         if presentation_mode:
-            st.markdown("### 🔄 Processing Steps")
+            st.markdown("### 🔄 Processing Pipeline")
 
             step_box = st.empty()
+            progress = st.progress(0)
 
             steps = [
                 "🔹 Loading multimodal inputs...",
@@ -104,11 +110,14 @@ elif page == "Live Demo":
                 "🔹 Generating output..."
             ]
 
-            for step in steps:
-                step_box.info(step)
-                time.sleep(0.6)
+            for text, prog in steps:
+                step_box.info(text)
+                for i in range(prog):
+                time.sleep(0.01)
+                progress.progress(i + 1)
 
             step_box.success("✅ Processing Complete")
+            progress.empty()
 
         # ⏳ Progress animation
         progress = st.progress(0)
@@ -239,6 +248,15 @@ elif page == "Live Demo":
             st.markdown("### 🔍 Detailed Analysis Mode")
             st.write("Feature maps and advanced outputs can be added here.")
 
+        # ---------------- SYSTEM STATUS ----------------
+        st.markdown("### ⚙️ System Status")
+
+        status_col1, status_col2, status_col3 = st.columns(3)
+
+        status_col1.success("Input Processing ✅")
+        status_col2.success("Fusion Engine ✅")
+        status_col3.success("Visualization ✅")
+
         # ---------------- REPORT ----------------
         report_text = """
 Dental AI Fusion Report
@@ -277,6 +295,9 @@ elif page == "Platform":
     outcomes_cards()
     clinical_summary_box()
 
+st.markdown("---")
+st.markdown("## 📊 Generated Results")    
+
 # ---------------- GLOBAL SUMMARY ----------------
 st.markdown("### 🏁 Demo Summary")
 st.success("""
@@ -284,5 +305,7 @@ This platform demonstrates how multimodal dental imaging can be unified into a
 single AI-assisted workflow, enabling enhanced visualization and future-ready 
 clinical decision support.
 """)
+st.success("Fusion inference completed successfully 🚀")
+st.balloons()
 
 footer_note()
