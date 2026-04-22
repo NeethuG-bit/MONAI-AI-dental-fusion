@@ -50,61 +50,60 @@ with st.sidebar:
     show_heatmap = st.toggle("Show AI Heatmap", value=True)
     presentation_mode = st.toggle("🎤 Presentation Mode", value=False)
 
-        st.markdown("---")
-        st.markdown("## 📘 Term Guide")
+    st.markdown("---")
+    st.markdown("## 📘 Term Guide")
 
-        panel = st.session_state.get("panel")
+    panel = st.session_state.get("panel")
 
-        if panel == "pan":
-          st.markdown("### 🦷 Panoramic (OPG)")
-          st.info("""
-    A panoramic radiograph is a 2D dental X-ray that shows:
-    - upper jaw
-    - lower jaw
-    - full dentition
-    - surrounding jaw structures
+    if panel == "pan":
+        st.markdown("### 🦷 Panoramic (OPG)")
+        st.info("""
+A panoramic radiograph is a 2D dental X-ray that shows:
+- upper jaw
+- lower jaw
+- full dentition
+- surrounding jaw structures
 
-    Common uses:
-    - orthodontic evaluation
-    - impacted tooth review
-    - implant planning
-    """)
+Common uses:
+- orthodontic evaluation
+- impacted tooth review
+- implant planning
+""")
 
-        elif panel == "cbct":
-            st.markdown("### 🧊 CBCT")
-            st.info("""
-    CBCT stands for Cone Beam Computed Tomography.
+    elif panel == "cbct":
+        st.markdown("### 🧊 CBCT")
+        st.info("""
+CBCT stands for Cone Beam Computed Tomography.
 
-    It provides:
-    - 3D volumetric imaging
-    - bone structure detail
-    - tooth root position
-    - spatial planning support
-    """)
+It provides:
+- 3D volumetric imaging
+- bone structure detail
+- tooth root position
+- spatial planning support
+""")
 
-        elif panel == "soft":
-            st.markdown("### 🧠 Soft Tissue")
-            st.info("""
-    Soft tissue imaging helps visualize:
-    - facial surface
-    - contour
-    - soft tissue profile
-    - esthetic planning context
-    """)
+    elif panel == "soft":
+        st.markdown("### 🧠 Soft Tissue")
+        st.info("""
+Soft tissue imaging helps visualize:
+- facial surface
+- contour
+- soft tissue profile
+- esthetic planning context
+""")
 
-        elif panel == "fusion":
-            st.markdown("### 🔗 Fusion")
-            st.info("""
-    Fusion combines information from multiple imaging modalities
-    into a single unified representation for review and planning.
-    """)
+    elif panel == "fusion":
+        st.markdown("### 🔗 Fusion")
+        st.info("""
+Fusion combines information from multiple imaging modalities
+into a single unified representation for review and planning.
+""")
 
 # ---------------- HEADER ----------------
 hero_section()
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
 
 colA, colB = st.columns([6, 1])
-
 with colB:
     st.markdown("🟢 **System Online**")
 
@@ -158,10 +157,10 @@ elif page == "Live Demo":
     with g4:
         if st.button("🔗 Fusion"):
             st.session_state["panel"] = "fusion"
+
     pan_file, cbct_file, soft_file = upload_console()
 
     if run_demo:
-
         # 🎤 Presentation steps
         if presentation_mode:
             st.markdown("### 🔄 Processing Pipeline")
@@ -170,32 +169,35 @@ elif page == "Live Demo":
             progress = st.progress(0)
 
             steps = [
-                "🔹 Loading multimodal inputs...",
-                "🔹 Applying transformations...",
-                "🔹 Running fusion model...",
-                "🔹 Generating output..."
+                ("🔹 Loading multimodal inputs...", 20),
+                ("🔹 Applying transformations...", 40),
+                ("🔹 Running fusion model...", 70),
+                ("🔹 Generating output...", 100),
             ]
 
+            last_progress = 0
             for text, prog in steps:
                 step_box.info(text)
-                for i in range(prog):
+                for i in range(last_progress, prog):
                     time.sleep(0.01)
                     progress.progress(i + 1)
+                last_progress = prog
 
             step_box.success("✅ Processing Complete")
             progress.empty()
 
-        # ⏳ Progress animation
-        progress = st.progress(0)
-        for i in range(100):
-            time.sleep(0.01)
-            progress.progress(i + 1)
+        # ⏳ Progress animation for non-presentation mode
+        else:
+            progress = st.progress(0)
+            for i in range(100):
+                time.sleep(0.01)
+                progress.progress(i + 1)
 
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
             pan = image_to_gray_array(pan_file) if pan_file else generate_panoramic((64, 64))
-            
+
             if cbct_file:
                 cbct_2d = image_to_gray_array(cbct_file)
                 cbct = np.repeat(cbct_2d[:, :, None], 32, axis=2)
@@ -220,7 +222,9 @@ elif page == "Live Demo":
             with torch.no_grad():
                 output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
 
-        progress.empty()
+        if not presentation_mode:
+            progress.empty()
+
         st.success("Fusion inference completed successfully")
 
         # ---------------- DATA ----------------
@@ -229,9 +233,18 @@ elif page == "Live Demo":
         soft_np = soft_tensor.cpu().numpy()[0, 0]
         output_np = output_tensor.cpu().numpy()[0, 0] * intensity
 
+        if show_shapes:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Panoramic", str(np.asarray(pan_np).shape))
+            c2.metric("CBCT", str(np.asarray(cbct_np).shape))
+            c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
+            c4.metric("Output", str(np.asarray(output_np).shape))
+
         cmap = "viridis" if use_colored_output else "gray"
 
         # ---------------- RESULTS ----------------
+        st.markdown("---")
+        st.markdown("## 📊 Generated Results")
         st.markdown("### 🧾 Fusion Results")
 
         c1, c2, c3, c4 = st.columns(4)
@@ -244,7 +257,12 @@ elif page == "Live Demo":
         st.markdown("---")
         st.markdown("### 🧊 CBCT Slice Explorer")
 
-        slice_idx = st.slider("Select Slice", 0, cbct_np.shape[2] - 1, cbct_np.shape[2] // 2)
+        slice_idx = st.slider(
+            "Select Slice",
+            0,
+            cbct_np.shape[2] - 1,
+            cbct_np.shape[2] // 2
+        )
 
         fig_slice, ax1 = plt.subplots()
         ax1.imshow(cbct_np[:, :, slice_idx], cmap=cmap)
@@ -281,8 +299,8 @@ elif page == "Live Demo":
 
         # ---------------- DOWNLOAD ----------------
         fig_dl, axs = plt.subplots(1, 4, figsize=(15, 4))
-        for i, img in enumerate([pan_np, cbct_np, soft_np, output_np]):
-            axs[i].imshow(get_slice(img), cmap=cmap)
+        for i, image in enumerate([pan_np, cbct_np, soft_np, output_np]):
+            axs[i].imshow(get_slice(image), cmap=cmap)
             axs[i].axis("off")
 
         buf = io.BytesIO()
@@ -316,9 +334,7 @@ elif page == "Live Demo":
 
         # ---------------- SYSTEM STATUS ----------------
         st.markdown("### ⚙️ System Status")
-
         status_col1, status_col2, status_col3 = st.columns(3)
-
         status_col1.success("Input Processing ✅")
         status_col2.success("Fusion Engine ✅")
         status_col3.success("Visualization ✅")
@@ -338,14 +354,17 @@ Capabilities:
 Note:
 Proof-of-concept demo using synthetic data.
 """
-        st.download_button("📄 Download Clinical Report", data=report_text)
+        st.download_button(
+            "📄 Download Clinical Report",
+            data=report_text,
+            file_name="fusion_report.txt",
+        )
 
         st.caption("⚠️ Demo uses synthetic data. Not for clinical use.")
-
         clinical_summary_box()
 
     else:
-        st.info("Click 'Run Fusion Demo' to start")
+        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in demo data.")
 
 elif page == "Use Cases":
     use_case_tabs()
@@ -361,17 +380,13 @@ elif page == "Platform":
     outcomes_cards()
     clinical_summary_box()
 
-st.markdown("---")
-st.markdown("## 📊 Generated Results")    
-
 # ---------------- GLOBAL SUMMARY ----------------
+st.markdown("---")
 st.markdown("### 🏁 Demo Summary")
 st.success("""
 This platform demonstrates how multimodal dental imaging can be unified into a 
 single AI-assisted workflow, enabling enhanced visualization and future-ready 
 clinical decision support.
 """)
-st.success("Fusion inference completed successfully 🚀")
-st.balloons()
 
 footer_note()
