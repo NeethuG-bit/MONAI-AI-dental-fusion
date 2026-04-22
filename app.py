@@ -94,10 +94,21 @@ elif page == "Live Demo":
         # 🎤 Presentation steps
         if presentation_mode:
             st.markdown("### 🔄 Processing Steps")
-            st.write("1. Loading multimodal inputs...")
-            st.write("2. Applying transformations...")
-            st.write("3. Running fusion model...")
-            st.write("4. Generating output...")
+
+            step_box = st.empty()
+
+            steps = [
+                "🔹 Loading multimodal inputs...",
+                "🔹 Applying transformations...",
+                "🔹 Running fusion model...",
+                "🔹 Generating output..."
+            ]
+
+            for step in steps:
+                step_box.info(step)
+                time.sleep(0.6)
+
+            step_box.success("✅ Processing Complete")
 
         # ⏳ Progress animation
         progress = st.progress(0)
