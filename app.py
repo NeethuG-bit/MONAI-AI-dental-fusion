@@ -34,6 +34,9 @@ st.set_page_config(
     layout="wide"
 )
 
+if "panel" not in st.session_state:
+    st.session_state["panel"] = "pan"
+
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.title("Platform Navigation")
@@ -140,24 +143,37 @@ if page == "Overview":
 
 elif page == "Live Demo":
     section_title("Live Fusion Dashboard", "Clinical-style demo workspace")
+    st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("### 📖 Imaging Modalities")
     st.markdown(
         """
-🦷 **Panoramic (OPG)**  
-<span title='2D full jaw X-ray showing teeth, jaw, and structure'>ℹ️</span>
+🦷 **Panoramic (OPG)** <span title='Full jaw 2D X-ray showing teeth and jaw structure'>ℹ️</span>  
 
-🧊 **CBCT**  
-<span title='3D cone beam CT scan used for volumetric dental imaging'>ℹ️</span>
+🧊 **CBCT** <span title='3D cone beam CT scan for volumetric dental imaging'>ℹ️</span>  
 
-🧠 **Soft Tissue**  
-<span title='Facial or soft tissue surface representation for esthetic analysis'>ℹ️</span>
+🧠 **Soft Tissue** <span title='Facial surface / soft tissue structure for esthetic planning'>ℹ️</span>  
 
-🔗 **Fusion**  
-<span title='Combining multiple modalities into a unified AI representation'>ℹ️</span>
+🔗 **Fusion** <span title='Combines multiple imaging modalities into one AI output'>ℹ️</span>  
 """,
         unsafe_allow_html=True
     )
+
+    st.markdown("### 📖 Click a term to learn more")
+    g1, g2, g3, g4 = st.columns(4)
+
+    with g1:
+        if st.button("🦷 Panoramic"):
+            st.session_state["panel"] = "pan"
+    with g2:
+        if st.button("🧊 CBCT"):
+            st.session_state["panel"] = "cbct"
+    with g3:
+        if st.button("🧠 Soft Tissue"):
+            st.session_state["panel"] = "soft"
+    with g4:
+        if st.button("🔗 Fusion"):
+            st.session_state["panel"] = "fusion"
 
     pan_file, cbct_file, soft_file = upload_console()
 
@@ -233,8 +249,9 @@ elif page == "Live Demo":
             progress.empty()
 
         st.success("Fusion inference completed successfully")
+        st.markdown("### 🤖 AI Interpretation Layer")
+        st.success("Fusion complete. Generating visual intelligence...")
 
-        # ---------------- DATA ----------------
         pan_np = pan_tensor.cpu().numpy()[0, 0]
         cbct_np = cbct_tensor.cpu().numpy()[0, 0]
         soft_np = soft_tensor.cpu().numpy()[0, 0]
@@ -249,13 +266,10 @@ elif page == "Live Demo":
 
         cmap = "viridis" if use_colored_output else "gray"
 
-        # ---------------- RESULTS ----------------
         st.markdown("---")
         st.markdown("## 📊 Generated Results")
         st.markdown("## 🧾 AI Fusion Results")
-        st.markdown("### 🤖 AI Interpretation Layer")
-        st.success("Fusion complete. Generating visual intelligence...")
-        st.caption("Multimodal visualization output from the fusion engine.")
+        st.caption("Multimodal visualization output from the fusion engine")
 
         with st.container():
             st.markdown("#### 📊 Visualization")
@@ -265,7 +279,6 @@ elif page == "Live Demo":
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
             c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
-        # ---------------- SLICE VIEWER ----------------
         st.markdown("---")
         st.markdown("### 🧊 CBCT Slice Explorer")
 
@@ -282,7 +295,6 @@ elif page == "Live Demo":
         ax1.axis("off")
         st.pyplot(fig_slice)
 
-        # ---------------- REGION DETECTION ----------------
         st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
 
@@ -295,7 +307,6 @@ elif page == "Live Demo":
         ax2.axis("off")
         st.pyplot(fig_detect)
 
-        # ---------------- HEATMAP ----------------
         if show_heatmap:
             st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
@@ -309,7 +320,6 @@ elif page == "Live Demo":
             ax3.axis("off")
             st.pyplot(fig_heat)
 
-        # ---------------- DOWNLOAD ----------------
         fig_dl, axs = plt.subplots(1, 4, figsize=(15, 4))
         for i, image in enumerate([pan_np, cbct_np, soft_np, output_np]):
             axs[i].imshow(get_slice(image), cmap=cmap)
@@ -326,7 +336,6 @@ elif page == "Live Demo":
             mime="image/png",
         )
 
-        # ---------------- INSIGHTS ----------------
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
 • Multimodal fusion highlights structural + soft tissue alignment  
@@ -344,14 +353,12 @@ elif page == "Live Demo":
             st.markdown("### 🔍 Detailed Analysis Mode")
             st.write("Feature maps and advanced outputs can be added here.")
 
-        # ---------------- SYSTEM STATUS ----------------
         st.markdown("### ⚙️ System Status")
         status_col1, status_col2, status_col3 = st.columns(3)
         status_col1.success("Input Processing ✅")
         status_col2.success("Fusion Engine ✅")
         status_col3.success("Visualization ✅")
 
-        # ---------------- REPORT ----------------
         report_text = """
 Dental AI Fusion Report
 
@@ -392,12 +399,11 @@ elif page == "Platform":
     outcomes_cards()
     clinical_summary_box()
 
-# ---------------- GLOBAL SUMMARY ----------------
 st.markdown("---")
 st.markdown("### 🏁 Demo Summary")
 st.success("""
-This platform demonstrates how multimodal dental imaging can be unified into a 
-single AI-assisted workflow, enabling enhanced visualization and future-ready 
+This platform demonstrates how multimodal dental imaging can be unified into a
+single AI-assisted workflow, enabling enhanced visualization and future-ready
 clinical decision support.
 """)
 
