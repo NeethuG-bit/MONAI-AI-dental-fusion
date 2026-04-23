@@ -132,10 +132,8 @@ def preprocess_image_2d(uploaded_file, target_size=(64, 64), mode="panoramic"):
     arr = np.array(img).astype(np.float32)
 
     if mode == "panoramic":
-        # hard-tissue style normalization
         arr = (arr / 255.0) * 2000 - 1000
     elif mode == "soft":
-        # softer range
         arr = (arr / 255.0) * 15.0
     else:
         arr = arr / 255.0
@@ -153,18 +151,44 @@ def preprocess_image_from_pil(img, target_size=(64, 64), mode="cbct"):
 
     return arr
 
+def inspect_cbct_zip(zip_file, preview_count=3, target_size=(64, 64)):
+    """
+    Returns:
+    - slice_count
+    - preview_images (list of 2D arrays)
+    """
+    zf = zipfile.ZipFile(zip_file)
+    names = sorted([
+        n for n in zf.namelist()
+        if n.lower().endswith((".png", ".jpg", ".jpeg"))
+    ])
+
+    preview_images = []
+    if names:
+        sample_indices = np.linspace(0, len(names) - 1, min(preview_count, len(names))).astype(int)
+        for idx in sample_indices:
+            with zf.open(names[idx]) as f:
+                img = Image.open(f)
+                arr = preprocess_image_from_pil(img, target_size=target_size, mode="cbct")
+                preview_images.append(arr)
+
+    return len(names), preview_images
+
 def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
     """
     Supports:
     - single image file -> repeated into volume
     - zip file of slice images -> stacked into volume
+
+    Returns:
+    - volume
+    - original_slice_count
     """
     if cbct_file is None:
-        return generate_cbct((target_size[0], target_size[1], depth))
+        return generate_cbct((target_size[0], target_size[1], depth)), depth
 
     filename = cbct_file.name.lower()
 
-    # ZIP of slices
     if filename.endswith(".zip"):
         zf = zipfile.ZipFile(cbct_file)
         names = sorted([
@@ -180,11 +204,11 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
                 slices.append(arr)
 
         if len(slices) == 0:
-            return generate_cbct((target_size[0], target_size[1], depth))
+            return generate_cbct((target_size[0], target_size[1], depth)), depth
 
         volume = np.stack(slices, axis=-1)
+        original_slice_count = volume.shape[-1]
 
-        # match required depth
         current_depth = volume.shape[-1]
         if current_depth > depth:
             idx = np.linspace(0, current_depth - 1, depth).astype(int)
@@ -195,12 +219,11 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
             pad_block = np.repeat(last_slice, pad_count, axis=-1)
             volume = np.concatenate([volume, pad_block], axis=-1)
 
-        return volume
+        return volume, original_slice_count
 
-    # single image -> repeat into 3D
     arr2d = preprocess_image_2d(cbct_file, target_size=target_size, mode="panoramic")
     volume = np.repeat(arr2d[:, :, None], depth, axis=2)
-    return volume
+    return volume, 1
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -245,17 +268,14 @@ elif page == "Live Demo":
         if st.button("🔗 Fusion"):
             st.session_state["panel"] = "fusion"
 
-    # standard 3 uploaders from your existing function
     pan_file, cbct_file, soft_file = upload_console()
 
-    # additional ZIP uploader for real CBCT stack
     cbct_zip = st.file_uploader(
         "Optional: Upload CBCT slice ZIP",
         type=["zip"],
         key="cbct_zip_upload"
     )
 
-    # prefer ZIP if provided
     cbct_source = cbct_zip if cbct_zip is not None else cbct_file
 
     st.info("📁 Upload real images or run demo with built-in synthetic data")
@@ -269,6 +289,24 @@ elif page == "Live Demo":
         preview_cols[1].success("CBCT ZIP uploaded")
     if soft_file:
         preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
+
+    # -------- STAGE 2 ZIP INSPECTION --------
+    if cbct_zip is not None:
+        slice_count, preview_images = inspect_cbct_zip(cbct_zip, preview_count=3, target_size=(64, 64))
+
+        st.markdown("### 🧊 CBCT ZIP Inspection")
+        s1, s2 = st.columns([1, 2])
+        with s1:
+            st.metric("Slices Found", str(slice_count))
+        with s2:
+            st.success("ZIP recognized as CBCT slice stack")
+
+        if preview_images:
+            st.markdown("#### Preview Slices")
+            preview_slice_cols = st.columns(len(preview_images))
+            for col, img in zip(preview_slice_cols, preview_images):
+                with col:
+                    st.image(img, caption="Slice Preview", use_container_width=True, clamp=True)
 
     if run_demo:
         if presentation_mode:
@@ -302,13 +340,12 @@ elif page == "Live Demo":
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
-            # -------- REAL OR SYNTHETIC INPUTS --------
             if pan_file:
                 pan = preprocess_image_2d(pan_file, target_size=(64, 64), mode="panoramic")
             else:
                 pan = generate_panoramic((64, 64))
 
-            cbct = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
+            cbct, original_cbct_depth = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
 
             if soft_file:
                 soft = preprocess_image_2d(soft_file, target_size=(64, 64), mode="soft")
@@ -345,6 +382,12 @@ elif page == "Live Demo":
             c2.metric("CBCT", str(np.asarray(cbct_np).shape))
             c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
             c4.metric("Output", str(np.asarray(output_np).shape))
+
+        st.markdown("### 📦 Volume Summary")
+        v1, v2, v3 = st.columns(3)
+        v1.metric("Original CBCT Slices", str(original_cbct_depth))
+        v2.metric("Model Volume Depth", str(cbct_np.shape[2]))
+        v3.metric("Input Mode", "Real Upload" if cbct_source is not None else "Synthetic Demo")
 
         cmap = "viridis" if use_colored_output else "gray"
 
@@ -441,7 +484,7 @@ elif page == "Live Demo":
         status_col2.success("Fusion Engine ✅")
         status_col3.success("Visualization ✅")
 
-        report_text = """
+        report_text = f"""
 Dental AI Fusion Report
 
 System:
@@ -451,6 +494,10 @@ Capabilities:
 - Cross-modality alignment
 - Integrated visualization
 - Interactive exploration
+
+CBCT Details:
+- Original uploaded slices: {original_cbct_depth}
+- Model depth after preprocessing: {cbct_np.shape[2]}
 
 Note:
 Proof-of-concept demo using real uploaded images when provided, otherwise synthetic data.
