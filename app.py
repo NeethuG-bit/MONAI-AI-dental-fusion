@@ -1,5 +1,6 @@
 import io
 import time
+import zipfile
 import numpy as np
 from PIL import Image
 import streamlit as st
@@ -117,12 +118,6 @@ kpi_row()
 workflow_banner()
 
 # ---------------- HELPERS ----------------
-def image_to_gray_array(uploaded_file, target_size=(64, 64)):
-    img = Image.open(uploaded_file).convert("L").resize(target_size)
-    arr = np.array(img).astype(np.float32)
-    arr = (arr / 255.0) * 2000 - 1000
-    return arr
-
 def get_slice(img):
     squeezed = np.asarray(img).squeeze()
     if squeezed.ndim == 2:
@@ -131,6 +126,81 @@ def get_slice(img):
         mid = squeezed.shape[-1] // 2
         return squeezed[:, :, mid]
     raise ValueError(f"Unsupported array shape: {squeezed.shape}")
+
+def preprocess_image_2d(uploaded_file, target_size=(64, 64), mode="panoramic"):
+    img = Image.open(uploaded_file).convert("L").resize(target_size)
+    arr = np.array(img).astype(np.float32)
+
+    if mode == "panoramic":
+        # hard-tissue style normalization
+        arr = (arr / 255.0) * 2000 - 1000
+    elif mode == "soft":
+        # softer range
+        arr = (arr / 255.0) * 15.0
+    else:
+        arr = arr / 255.0
+
+    return arr
+
+def preprocess_image_from_pil(img, target_size=(64, 64), mode="cbct"):
+    img = img.convert("L").resize(target_size)
+    arr = np.array(img).astype(np.float32)
+
+    if mode == "cbct":
+        arr = (arr / 255.0) * 2000 - 1000
+    else:
+        arr = arr / 255.0
+
+    return arr
+
+def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
+    """
+    Supports:
+    - single image file -> repeated into volume
+    - zip file of slice images -> stacked into volume
+    """
+    if cbct_file is None:
+        return generate_cbct((target_size[0], target_size[1], depth))
+
+    filename = cbct_file.name.lower()
+
+    # ZIP of slices
+    if filename.endswith(".zip"):
+        zf = zipfile.ZipFile(cbct_file)
+        names = sorted([
+            n for n in zf.namelist()
+            if n.lower().endswith((".png", ".jpg", ".jpeg"))
+        ])
+
+        slices = []
+        for name in names:
+            with zf.open(name) as f:
+                img = Image.open(f)
+                arr = preprocess_image_from_pil(img, target_size=target_size, mode="cbct")
+                slices.append(arr)
+
+        if len(slices) == 0:
+            return generate_cbct((target_size[0], target_size[1], depth))
+
+        volume = np.stack(slices, axis=-1)
+
+        # match required depth
+        current_depth = volume.shape[-1]
+        if current_depth > depth:
+            idx = np.linspace(0, current_depth - 1, depth).astype(int)
+            volume = volume[:, :, idx]
+        elif current_depth < depth:
+            pad_count = depth - current_depth
+            last_slice = volume[:, :, -1:]
+            pad_block = np.repeat(last_slice, pad_count, axis=-1)
+            volume = np.concatenate([volume, pad_block], axis=-1)
+
+        return volume
+
+    # single image -> repeat into 3D
+    arr2d = preprocess_image_2d(cbct_file, target_size=target_size, mode="panoramic")
+    volume = np.repeat(arr2d[:, :, None], depth, axis=2)
+    return volume
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -175,15 +245,28 @@ elif page == "Live Demo":
         if st.button("🔗 Fusion"):
             st.session_state["panel"] = "fusion"
 
+    # standard 3 uploaders from your existing function
     pan_file, cbct_file, soft_file = upload_console()
 
-    st.info("📁 Upload images OR run demo with built-in synthetic data")
+    # additional ZIP uploader for real CBCT stack
+    cbct_zip = st.file_uploader(
+        "Optional: Upload CBCT slice ZIP",
+        type=["zip"],
+        key="cbct_zip_upload"
+    )
+
+    # prefer ZIP if provided
+    cbct_source = cbct_zip if cbct_zip is not None else cbct_file
+
+    st.info("📁 Upload real images or run demo with built-in synthetic data")
 
     preview_cols = st.columns(3)
     if pan_file:
         preview_cols[0].image(pan_file, caption="Panoramic Preview")
-    if cbct_file:
+    if cbct_file and cbct_zip is None:
         preview_cols[1].image(cbct_file, caption="CBCT Preview")
+    elif cbct_zip:
+        preview_cols[1].success("CBCT ZIP uploaded")
     if soft_file:
         preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
 
@@ -219,17 +302,16 @@ elif page == "Live Demo":
         with st.spinner("Running multimodal fusion inference..."):
             device = torch.device("cpu")
 
-            pan = image_to_gray_array(pan_file) if pan_file else generate_panoramic((64, 64))
-
-            if cbct_file:
-                cbct_2d = image_to_gray_array(cbct_file)
-                cbct = np.repeat(cbct_2d[:, :, None], 32, axis=2)
+            # -------- REAL OR SYNTHETIC INPUTS --------
+            if pan_file:
+                pan = preprocess_image_2d(pan_file, target_size=(64, 64), mode="panoramic")
             else:
-                cbct = generate_cbct((64, 64, 32))
+                pan = generate_panoramic((64, 64))
+
+            cbct = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
 
             if soft_file:
-                soft_img = Image.open(soft_file).convert("L").resize((64, 64))
-                soft = (np.array(soft_img).astype(np.float32) / 255.0) * 15.0
+                soft = preprocess_image_2d(soft_file, target_size=(64, 64), mode="soft")
             else:
                 soft = generate_soft_tissue((64, 64))
 
@@ -371,7 +453,7 @@ Capabilities:
 - Interactive exploration
 
 Note:
-Proof-of-concept demo using synthetic data.
+Proof-of-concept demo using real uploaded images when provided, otherwise synthetic data.
 """
         st.download_button(
             "📄 Download Clinical Report",
@@ -379,11 +461,11 @@ Proof-of-concept demo using synthetic data.
             file_name="fusion_report.txt",
         )
 
-        st.caption("⚠️ Demo uses synthetic data. Not for clinical use.")
+        st.caption("⚠️ Prototype workflow. Not for clinical use.")
         clinical_summary_box()
 
     else:
-        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in synthetic data.")
+        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in demo data.")
 
 elif page == "Use Cases":
     use_case_tabs()
