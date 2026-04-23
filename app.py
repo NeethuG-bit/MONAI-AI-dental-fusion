@@ -7,6 +7,7 @@ from PIL import Image
 import streamlit as st
 import torch
 import matplotlib.pyplot as plt
+import pydicom
 
 from model import DentalFusionNetwork
 from data import generate_panoramic, generate_cbct, generate_soft_tissue
@@ -120,9 +121,6 @@ workflow_banner()
 
 # ---------------- HELPERS ----------------
 def natural_sort_key(name):
-    """
-    Sort filenames like slice1, slice2, ..., slice10 correctly.
-    """
     return [
         int(text) if text.isdigit() else text.lower()
         for text in re.split(r"(\d+)", name)
@@ -161,65 +159,163 @@ def preprocess_image_from_pil(img, target_size=(64, 64), mode="cbct"):
 
     return arr
 
+def normalize_dicom_pixels(arr, target_min=-1000.0, target_max=1000.0):
+    arr = arr.astype(np.float32)
+    arr_min = np.min(arr)
+    arr_max = np.max(arr)
+    if arr_max - arr_min < 1e-6:
+        return np.zeros_like(arr, dtype=np.float32)
+    arr = (arr - arr_min) / (arr_max - arr_min)
+    arr = arr * (target_max - target_min) + target_min
+    return arr
+
+def preprocess_dicom_array(arr, target_size=(64, 64)):
+    arr = normalize_dicom_pixels(arr, -1000.0, 1000.0)
+    arr_norm = arr - arr.min()
+    if arr_norm.max() > 0:
+        arr_norm = arr_norm / arr_norm.max()
+    arr_img = Image.fromarray((arr_norm * 255).astype(np.uint8)).resize(target_size)
+    arr_img = np.array(arr_img).astype(np.float32)
+    arr_final = (arr_img / 255.0) * 2000 - 1000
+    return arr_final
+
+def safe_getattr(ds, attr, default="Unknown"):
+    try:
+        value = getattr(ds, attr, default)
+        return str(value)
+    except Exception:
+        return default
+
+def read_dicom_from_bytes(file_bytes):
+    bio = io.BytesIO(file_bytes)
+    ds = pydicom.dcmread(bio, force=True)
+    pixel_array = ds.pixel_array
+    return ds, pixel_array
+
 def inspect_cbct_zip(zip_file, preview_count=5, target_size=(64, 64)):
     """
+    Supports ZIP with:
+    - image slices
+    - dicom slices
+
     Returns:
-    - slice_count
-    - preview_images (list of 2D arrays)
+    - info dict
     """
     zf = zipfile.ZipFile(zip_file)
-    names = [
-        n for n in zf.namelist()
-        if n.lower().endswith((".png", ".jpg", ".jpeg"))
-    ]
+    names = [n for n in zf.namelist() if not n.endswith("/")]
     names = sorted(names, key=natural_sort_key)
 
+    image_names = [n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg"))]
+    dicom_names = [n for n in names if n.lower().endswith(".dcm") or "." not in n.split("/")[-1]]
+
     preview_images = []
-    if names:
-        sample_indices = np.linspace(0, len(names) - 1, min(preview_count, len(names))).astype(int)
+    metadata = {
+        "type": "unknown",
+        "slice_count": 0,
+        "patient_name": "Unknown",
+        "study_date": "Unknown",
+        "modality": "Unknown",
+    }
+
+    if dicom_names:
+        metadata["type"] = "dicom"
+        metadata["slice_count"] = len(dicom_names)
+
+        sample_indices = np.linspace(0, len(dicom_names) - 1, min(preview_count, len(dicom_names))).astype(int)
+
+        first_ds = None
         for idx in sample_indices:
-            with zf.open(names[idx]) as f:
+            with zf.open(dicom_names[idx]) as f:
+                ds, pixel_array = read_dicom_from_bytes(f.read())
+                if first_ds is None:
+                    first_ds = ds
+                arr = preprocess_dicom_array(pixel_array, target_size=target_size)
+                preview_images.append(arr)
+
+        if first_ds is not None:
+            metadata["patient_name"] = safe_getattr(first_ds, "PatientName")
+            metadata["study_date"] = safe_getattr(first_ds, "StudyDate")
+            metadata["modality"] = safe_getattr(first_ds, "Modality")
+
+    elif image_names:
+        metadata["type"] = "image_stack"
+        metadata["slice_count"] = len(image_names)
+
+        sample_indices = np.linspace(0, len(image_names) - 1, min(preview_count, len(image_names))).astype(int)
+        for idx in sample_indices:
+            with zf.open(image_names[idx]) as f:
                 img = Image.open(f)
                 arr = preprocess_image_from_pil(img, target_size=target_size, mode="cbct")
                 preview_images.append(arr)
 
-    return len(names), preview_images
+    return metadata, preview_images
 
 def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
     """
     Supports:
     - single image file -> repeated into volume
-    - zip file of slice images -> stacked into volume
+    - zip file of image slices
+    - zip file of dicom slices
 
     Returns:
     - volume
-    - original_slice_count
+    - info dict
     """
+    info = {
+        "type": "synthetic",
+        "original_slice_count": depth,
+        "patient_name": "Unknown",
+        "study_date": "Unknown",
+        "modality": "Unknown",
+    }
+
     if cbct_file is None:
-        return generate_cbct((target_size[0], target_size[1], depth)), depth
+        return generate_cbct((target_size[0], target_size[1], depth)), info
 
     filename = cbct_file.name.lower()
 
     if filename.endswith(".zip"):
         zf = zipfile.ZipFile(cbct_file)
-        names = [
-            n for n in zf.namelist()
-            if n.lower().endswith((".png", ".jpg", ".jpeg"))
-        ]
+        names = [n for n in zf.namelist() if not n.endswith("/")]
         names = sorted(names, key=natural_sort_key)
 
+        image_names = [n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg"))]
+        dicom_names = [n for n in names if n.lower().endswith(".dcm") or "." not in n.split("/")[-1]]
+
         slices = []
-        for name in names:
-            with zf.open(name) as f:
-                img = Image.open(f)
-                arr = preprocess_image_from_pil(img, target_size=target_size, mode="cbct")
-                slices.append(arr)
+
+        if dicom_names:
+            info["type"] = "dicom"
+            info["original_slice_count"] = len(dicom_names)
+
+            first_ds = None
+            for name in dicom_names:
+                with zf.open(name) as f:
+                    ds, pixel_array = read_dicom_from_bytes(f.read())
+                    if first_ds is None:
+                        first_ds = ds
+                    arr = preprocess_dicom_array(pixel_array, target_size=target_size)
+                    slices.append(arr)
+
+            if first_ds is not None:
+                info["patient_name"] = safe_getattr(first_ds, "PatientName")
+                info["study_date"] = safe_getattr(first_ds, "StudyDate")
+                info["modality"] = safe_getattr(first_ds, "Modality")
+
+        elif image_names:
+            info["type"] = "image_stack"
+            info["original_slice_count"] = len(image_names)
+
+            for name in image_names:
+                with zf.open(name) as f:
+                    img = Image.open(f)
+                    arr = preprocess_image_from_pil(img, target_size=target_size, mode="cbct")
+                    slices.append(arr)
 
         if len(slices) == 0:
-            return generate_cbct((target_size[0], target_size[1], depth)), depth
+            return generate_cbct((target_size[0], target_size[1], depth)), info
 
         volume = np.stack(slices, axis=-1)
-        original_slice_count = volume.shape[-1]
 
         current_depth = volume.shape[-1]
         if current_depth > depth:
@@ -231,16 +327,16 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
             pad_block = np.repeat(last_slice, pad_count, axis=-1)
             volume = np.concatenate([volume, pad_block], axis=-1)
 
-        return volume, original_slice_count
+        return volume, info
 
+    # single image
     arr2d = preprocess_image_2d(cbct_file, target_size=target_size, mode="panoramic")
     volume = np.repeat(arr2d[:, :, None], depth, axis=2)
-    return volume, 1
+    info["type"] = "single_image"
+    info["original_slice_count"] = 1
+    return volume, info
 
 def get_volume_view(volume, view="Axial", index=None):
-    """
-    volume shape expected: (H, W, D)
-    """
     h, w, d = volume.shape
 
     if view == "Axial":
@@ -248,18 +344,17 @@ def get_volume_view(volume, view="Axial", index=None):
             index = d // 2
         return volume[:, :, index], d - 1, index
 
-    elif view == "Coronal":
+    if view == "Coronal":
         if index is None:
             index = h // 2
         return volume[index, :, :], h - 1, index
 
-    elif view == "Sagittal":
+    if view == "Sagittal":
         if index is None:
             index = w // 2
         return volume[:, index, :], w - 1, index
 
-    else:
-        raise ValueError(f"Unknown view: {view}")
+    raise ValueError(f"Unknown view: {view}")
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -307,14 +402,14 @@ elif page == "Live Demo":
     pan_file, cbct_file, soft_file = upload_console()
 
     cbct_zip = st.file_uploader(
-        "Optional: Upload CBCT slice ZIP",
+        "Optional: Upload CBCT ZIP (image slices or DICOM series)",
         type=["zip"],
         key="cbct_zip_upload"
     )
 
     cbct_source = cbct_zip if cbct_zip is not None else cbct_file
 
-    st.info("📁 Upload real images or run demo with built-in synthetic data")
+    st.info("📁 Upload real images, ZIP slice stacks, or DICOM ZIP series — or run demo with built-in synthetic data")
 
     preview_cols = st.columns(3)
     if pan_file:
@@ -327,14 +422,16 @@ elif page == "Live Demo":
         preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
 
     if cbct_zip is not None:
-        slice_count, preview_images = inspect_cbct_zip(cbct_zip, preview_count=5, target_size=(64, 64))
+        metadata, preview_images = inspect_cbct_zip(cbct_zip, preview_count=5, target_size=(64, 64))
 
         st.markdown("### 🧊 CBCT ZIP Inspection")
-        s1, s2 = st.columns([1, 2])
-        with s1:
-            st.metric("Slices Found", str(slice_count))
-        with s2:
-            st.success("ZIP recognized as CBCT slice stack")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Type", metadata["type"])
+        m2.metric("Slices Found", str(metadata["slice_count"]))
+        m3.metric("Modality", metadata["modality"])
+        m4.metric("Study Date", metadata["study_date"])
+
+        st.markdown(f"**Patient Name:** {metadata['patient_name']}")
 
         if preview_images:
             st.markdown("#### Thumbnail Strip")
@@ -380,7 +477,7 @@ elif page == "Live Demo":
             else:
                 pan = generate_panoramic((64, 64))
 
-            cbct, original_cbct_depth = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
+            cbct, cbct_info = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
 
             if soft_file:
                 soft = preprocess_image_2d(soft_file, target_size=(64, 64), mode="soft")
@@ -419,10 +516,14 @@ elif page == "Live Demo":
             c4.metric("Output", str(np.asarray(output_np).shape))
 
         st.markdown("### 📦 Volume Summary")
-        v1, v2, v3 = st.columns(3)
-        v1.metric("Original CBCT Slices", str(original_cbct_depth))
-        v2.metric("Model Volume Depth", str(cbct_np.shape[2]))
-        v3.metric("Input Mode", "Real Upload" if cbct_source is not None else "Synthetic Demo")
+        v1, v2, v3, v4 = st.columns(4)
+        v1.metric("Input Type", cbct_info["type"])
+        v2.metric("Original Slices", str(cbct_info["original_slice_count"]))
+        v3.metric("Model Depth", str(cbct_np.shape[2]))
+        v4.metric("Modality", cbct_info["modality"])
+
+        st.markdown(f"**Patient Name:** {cbct_info['patient_name']}")
+        st.markdown(f"**Study Date:** {cbct_info['study_date']}")
 
         cmap = "viridis" if use_colored_output else "gray"
 
@@ -439,7 +540,6 @@ elif page == "Live Demo":
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
             c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
-        # -------- MULTI-VIEW CBCT EXPLORER --------
         st.markdown("---")
         st.markdown("### 🧊 Advanced CBCT Explorer")
 
@@ -449,7 +549,7 @@ elif page == "Live Demo":
             horizontal=True
         )
 
-        preview_img, max_idx, default_idx = get_volume_view(cbct_np, view=view_mode)
+        _, max_idx, default_idx = get_volume_view(cbct_np, view=view_mode)
 
         selected_idx = st.slider(
             f"{view_mode} Slice Index",
@@ -466,7 +566,6 @@ elif page == "Live Demo":
         axv.axis("off")
         st.pyplot(fig_view)
 
-        # -------- DETECTED REGION --------
         st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
 
@@ -479,7 +578,6 @@ elif page == "Live Demo":
         ax2.axis("off")
         st.pyplot(fig_detect)
 
-        # -------- HEATMAP --------
         if show_heatmap:
             st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
@@ -493,7 +591,6 @@ elif page == "Live Demo":
             ax3.axis("off")
             st.pyplot(fig_heat)
 
-        # -------- DOWNLOAD --------
         fig_dl, axs = plt.subplots(1, 4, figsize=(15, 4))
         for i, image in enumerate([pan_np, cbct_np, soft_np, output_np]):
             axs[i].imshow(get_slice(image), cmap=cmap)
@@ -510,12 +607,12 @@ elif page == "Live Demo":
             mime="image/png",
         )
 
-        # -------- INSIGHTS --------
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
 • Multimodal fusion highlights structural + soft tissue alignment  
 • Supports visualization for planning workflows  
 • Demonstrates cross-modality integration  
+• DICOM-ready CBCT ingestion scaffold is now available  
 """)
 
         st.markdown("### 📊 Model Indicators")
@@ -526,7 +623,7 @@ elif page == "Live Demo":
 
         if mode == "Detailed Analysis":
             st.markdown("### 🔍 Detailed Analysis Mode")
-            st.write("Feature maps and advanced outputs can be added here.")
+            st.write("Feature maps, segmentation overlays, and advanced outputs can be added here.")
 
         st.markdown("### ⚙️ System Status")
         status_col1, status_col2, status_col3 = st.columns(3)
@@ -545,13 +642,18 @@ Capabilities:
 - Integrated visualization
 - Interactive exploration
 - Multi-view CBCT browsing
+- DICOM-ready CBCT ingestion scaffold
 
 CBCT Details:
-- Original uploaded slices: {original_cbct_depth}
+- Input Type: {cbct_info["type"]}
+- Original uploaded slices: {cbct_info["original_slice_count"]}
 - Model depth after preprocessing: {cbct_np.shape[2]}
+- Patient Name: {cbct_info["patient_name"]}
+- Study Date: {cbct_info["study_date"]}
+- Modality: {cbct_info["modality"]}
 
 Note:
-Proof-of-concept demo using real uploaded images when provided, otherwise synthetic data.
+Prototype workflow. Not for clinical use.
 """
         st.download_button(
             "📄 Download Clinical Report",
@@ -563,7 +665,7 @@ Proof-of-concept demo using real uploaded images when provided, otherwise synthe
         clinical_summary_box()
 
     else:
-        st.info("Upload preview images if available, or click 'Run Fusion Demo' to use built-in demo data.")
+        st.info("Upload preview images, CBCT slice ZIP, or DICOM ZIP series — or click 'Run Fusion Demo' to use built-in demo data.")
 
 elif page == "Use Cases":
     use_case_tabs()
