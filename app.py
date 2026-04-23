@@ -1,4 +1,5 @@
 import io
+import re
 import time
 import zipfile
 import numpy as np
@@ -118,6 +119,15 @@ kpi_row()
 workflow_banner()
 
 # ---------------- HELPERS ----------------
+def natural_sort_key(name):
+    """
+    Sort filenames like slice1, slice2, ..., slice10 correctly.
+    """
+    return [
+        int(text) if text.isdigit() else text.lower()
+        for text in re.split(r"(\d+)", name)
+    ]
+
 def get_slice(img):
     squeezed = np.asarray(img).squeeze()
     if squeezed.ndim == 2:
@@ -151,17 +161,18 @@ def preprocess_image_from_pil(img, target_size=(64, 64), mode="cbct"):
 
     return arr
 
-def inspect_cbct_zip(zip_file, preview_count=3, target_size=(64, 64)):
+def inspect_cbct_zip(zip_file, preview_count=5, target_size=(64, 64)):
     """
     Returns:
     - slice_count
     - preview_images (list of 2D arrays)
     """
     zf = zipfile.ZipFile(zip_file)
-    names = sorted([
+    names = [
         n for n in zf.namelist()
         if n.lower().endswith((".png", ".jpg", ".jpeg"))
-    ])
+    ]
+    names = sorted(names, key=natural_sort_key)
 
     preview_images = []
     if names:
@@ -191,10 +202,11 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
 
     if filename.endswith(".zip"):
         zf = zipfile.ZipFile(cbct_file)
-        names = sorted([
+        names = [
             n for n in zf.namelist()
             if n.lower().endswith((".png", ".jpg", ".jpeg"))
-        ])
+        ]
+        names = sorted(names, key=natural_sort_key)
 
         slices = []
         for name in names:
@@ -224,6 +236,30 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
     arr2d = preprocess_image_2d(cbct_file, target_size=target_size, mode="panoramic")
     volume = np.repeat(arr2d[:, :, None], depth, axis=2)
     return volume, 1
+
+def get_volume_view(volume, view="Axial", index=None):
+    """
+    volume shape expected: (H, W, D)
+    """
+    h, w, d = volume.shape
+
+    if view == "Axial":
+        if index is None:
+            index = d // 2
+        return volume[:, :, index], d - 1, index
+
+    elif view == "Coronal":
+        if index is None:
+            index = h // 2
+        return volume[index, :, :], h - 1, index
+
+    elif view == "Sagittal":
+        if index is None:
+            index = w // 2
+        return volume[:, index, :], w - 1, index
+
+    else:
+        raise ValueError(f"Unknown view: {view}")
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -290,9 +326,8 @@ elif page == "Live Demo":
     if soft_file:
         preview_cols[2].image(soft_file, caption="Soft Tissue Preview")
 
-    # -------- STAGE 2 ZIP INSPECTION --------
     if cbct_zip is not None:
-        slice_count, preview_images = inspect_cbct_zip(cbct_zip, preview_count=3, target_size=(64, 64))
+        slice_count, preview_images = inspect_cbct_zip(cbct_zip, preview_count=5, target_size=(64, 64))
 
         st.markdown("### 🧊 CBCT ZIP Inspection")
         s1, s2 = st.columns([1, 2])
@@ -302,11 +337,11 @@ elif page == "Live Demo":
             st.success("ZIP recognized as CBCT slice stack")
 
         if preview_images:
-            st.markdown("#### Preview Slices")
-            preview_slice_cols = st.columns(len(preview_images))
-            for col, img in zip(preview_slice_cols, preview_images):
+            st.markdown("#### Thumbnail Strip")
+            thumb_cols = st.columns(len(preview_images))
+            for col, img in zip(thumb_cols, preview_images):
                 with col:
-                    st.image(img, caption="Slice Preview", use_container_width=True, clamp=True)
+                    st.image(img, caption="Slice", use_container_width=True, clamp=True)
 
     if run_demo:
         if presentation_mode:
@@ -404,22 +439,34 @@ elif page == "Live Demo":
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
             c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
 
+        # -------- MULTI-VIEW CBCT EXPLORER --------
         st.markdown("---")
-        st.markdown("### 🧊 CBCT Slice Explorer")
+        st.markdown("### 🧊 Advanced CBCT Explorer")
 
-        slice_idx = st.slider(
-            "Select Slice",
-            0,
-            cbct_np.shape[2] - 1,
-            cbct_np.shape[2] // 2
+        view_mode = st.radio(
+            "Select View",
+            ["Axial", "Coronal", "Sagittal"],
+            horizontal=True
         )
 
-        fig_slice, ax1 = plt.subplots()
-        ax1.imshow(cbct_np[:, :, slice_idx], cmap=cmap)
-        ax1.set_title(f"CBCT Slice {slice_idx}")
-        ax1.axis("off")
-        st.pyplot(fig_slice)
+        preview_img, max_idx, default_idx = get_volume_view(cbct_np, view=view_mode)
 
+        selected_idx = st.slider(
+            f"{view_mode} Slice Index",
+            0,
+            max_idx,
+            default_idx
+        )
+
+        selected_view, _, _ = get_volume_view(cbct_np, view=view_mode, index=selected_idx)
+
+        fig_view, axv = plt.subplots()
+        axv.imshow(selected_view, cmap=cmap)
+        axv.set_title(f"{view_mode} View — Slice {selected_idx}")
+        axv.axis("off")
+        st.pyplot(fig_view)
+
+        # -------- DETECTED REGION --------
         st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
 
@@ -432,6 +479,7 @@ elif page == "Live Demo":
         ax2.axis("off")
         st.pyplot(fig_detect)
 
+        # -------- HEATMAP --------
         if show_heatmap:
             st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
@@ -445,6 +493,7 @@ elif page == "Live Demo":
             ax3.axis("off")
             st.pyplot(fig_heat)
 
+        # -------- DOWNLOAD --------
         fig_dl, axs = plt.subplots(1, 4, figsize=(15, 4))
         for i, image in enumerate([pan_np, cbct_np, soft_np, output_np]):
             axs[i].imshow(get_slice(image), cmap=cmap)
@@ -461,6 +510,7 @@ elif page == "Live Demo":
             mime="image/png",
         )
 
+        # -------- INSIGHTS --------
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
 • Multimodal fusion highlights structural + soft tissue alignment  
@@ -494,6 +544,7 @@ Capabilities:
 - Cross-modality alignment
 - Integrated visualization
 - Interactive exploration
+- Multi-view CBCT browsing
 
 CBCT Details:
 - Original uploaded slices: {original_cbct_depth}
