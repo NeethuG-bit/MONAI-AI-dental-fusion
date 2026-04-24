@@ -15,6 +15,7 @@ from transforms import get_transforms
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
+from segmentation_model import run_segmentation 
 
 def generate_pdf_report(text_content, filename="report.pdf"):
     buffer = io.BytesID()
@@ -539,7 +540,7 @@ elif page == "Live Demo":
         st.markdown("### 🤖 AI Interpretation Layer")
         st.success("Fusion complete. Generating visual intelligence...")
         st.markdown("### 🧪 Clinical View")
-        st.caption("Radiology-style visualization for diagnostic interpretation")
+        st.caption("Radiology-style visualization for diagnostic interpretation")  
 
         pan_np = pan_tensor.cpu().numpy()[0, 0]
         cbct_np = cbct_tensor.cpu().numpy()[0, 0]
@@ -604,7 +605,7 @@ elif page == "Live Demo":
         axv.axis("off")
         st.pyplot(fig_view)
 
-        st.markdown("---")
+        st.markdown("---")(
         st.markdown("### 🎯 Detected Region (Simulated)")
 
         img = get_slice(output_np)
@@ -622,14 +623,25 @@ elif page == "Live Demo":
 
             base_img = get_slice(cbct_np)
             output_img = get_slice(output_np)
-            seg_mask = create_simulated_segmnetation(output_img, segmentation_threshold)
+            seg_tensor, seg_mode = run_segmentation(cbct_tensor, devices)
+
+            seg_np = seg_tensor.cpu().numpy()[0, 0]
+            seg_slice = get_slice(seg_np)
+
+            st.markdown("### 🧩 Segmentation Overlay")
 
             fig_seg, ax_seg = plt.subplots()
-            ax_seg.imshow(base_img, cmap="gray")
-            ax_seg.imshow(seg_mask, cmap="jet", alpha=0.35)
-            ax_seg.set_title("Simulated Segmentation Overlay")
+            ax_seg.imshow(get_slice(cbct_np), cmap="gray")
+            ax_seg.imshow(seg_slice, cmap="jet", alpha=0.35)
+            ax_seg.set_title(f"Segmentation Overlay ({seg_mode})")
             ax_seg.axis("off")
             st.pyplot(fig_seg)
+
+            if seg_mode == "fallback":
+                st.warning("Using fallback segmentation because trained model weights were not found.")
+
+            else:
+                st.success("Real segmentation model loaded successfully.")    
 
             st.caption(
                 "This overlay is a simulated ROI mask for demo purposes."
