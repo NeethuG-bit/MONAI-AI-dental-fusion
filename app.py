@@ -55,6 +55,8 @@ with st.sidebar:
     intensity = st.slider("Output Enhancement", 0.5, 2.0, 1.0)
     show_heatmap = st.toggle("Show AI Heatmap", value=True)
     presentation_mode = st.toggle("🎤 Presentation Mode", value=False)
+    show_segmentation = st.toggle("Show Segemntation Overlay", value=True)
+    segmentation_threshold = st.slider("Segmentation sensitivity", 0.1, 0.9, 0.55)
 
     st.markdown("---")
     st.markdown("## 📘 Term Guide")
@@ -191,6 +193,20 @@ def read_dicom_from_bytes(file_bytes):
     ds = pydicom.dcmread(bio, force=True)
     pixel_array = ds.pixel_array
     return ds, pixel_array
+
+def create_simulated_segmentation(image, threshold=0.55):
+    img = np.asarray(image).astype(np.float32)
+
+    img_min = img.min()
+    img_max = img.max()
+
+    if img_max - img_min < 1e-6:
+        return np.zeros_like(img, dtype=np.float32)
+
+    norm = (img - img_min) / (img_max - img_min)
+
+    mask = norm > threshold
+    return mask.astype(np.float32)      
 
 def inspect_cbct_zip(zip_file, preview_count=5, target_size=(64, 64)):
     """
@@ -578,6 +594,26 @@ elif page == "Live Demo":
         ax2.axis("off")
         st.pyplot(fig_detect)
 
+        if show_segmentation:
+            st.markdown("---")
+            st.markdown("### 🧩 Segmentation Overlay (Simulated) ")
+
+            base_img = get_slice(cbct_np)
+            output_img = get_slice(output_np)
+            seg_mask = create_simulated_segmnetation(output_img, segmentation_threshold)
+
+            fig_seg, ax_seg = plt.subplots()
+            ax_seg.imshow(base_img, cmap="gray")
+            ax_seg.imshow(seg_mask, cmap="jet", alpha=0.35)
+            ax_seg.set_title("Simulated Segmentation Overlay")
+            ax_seg.axis("off")
+            st.pyplot(fig_seg)
+
+            st.caption(
+                "This overlay is a simulated ROI mask for demo purposes."
+                "It can later be replaced with a real MONAI segmentation model output."
+            )
+
         if show_heatmap:
             st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
@@ -609,7 +645,8 @@ elif page == "Live Demo":
 
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
-• Multimodal fusion highlights structural + soft tissue alignment  
+• Multimodal fusion highlights structural + soft tissue alignment
+• Segmentation overlay simulated AI-based region-of-interest detection  
 • Supports visualization for planning workflows  
 • Demonstrates cross-modality integration  
 • DICOM-ready CBCT ingestion scaffold is now available  
@@ -643,6 +680,7 @@ Capabilities:
 - Interactive exploration
 - Multi-view CBCT browsing
 - DICOM-ready CBCT ingestion scaffold
+- Simulated segmentation overlay / ROI mask
 
 CBCT Details:
 - Input Type: {cbct_info["type"]}
