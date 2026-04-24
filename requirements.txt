@@ -9,3 +9,4 @@ scikit-image
 nibabel
 pillow
 pydicom
+reportlab

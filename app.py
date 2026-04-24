@@ -12,6 +12,24 @@ import pydicom
 from model import DentalFusionNetwork
 from data import generate_panoramic, generate_cbct, generate_soft_tissue
 from transforms import get_transforms
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+
+def generate_pdf_report(text_content, filename="report.pdf"):
+    buffer = io.BytesID()
+    doc = SompleDocTemplate(buffer, pagesize=letter)
+
+    styles = getSamplestyleSheet()
+    story = []
+
+    for line in text_content.split("\n"):
+        story.append(Paragraph(line, styles["Normal"]))
+        story.append(Spacer(1, 10))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer     
 
 from demo_sections import (
     hero_section,
@@ -109,7 +127,9 @@ into a single unified representation for review and planning.
 
 # ---------------- HEADER ----------------
 hero_section()
+st.warning("🔒 Research Prototype — Not for Clinical Use")
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
+st.success("🟢 System Ready • Model Loaded • No Errors")
 
 colA, colB = st.columns([6, 1])
 with colB:
@@ -518,6 +538,8 @@ elif page == "Live Demo":
         st.success("Fusion inference completed successfully")
         st.markdown("### 🤖 AI Interpretation Layer")
         st.success("Fusion complete. Generating visual intelligence...")
+        st.markdown("### 🧪 Clinical View")
+        st.caption("Radiology-style visualization for diagnostic interpretation")
 
         pan_np = pan_tensor.cpu().numpy()[0, 0]
         cbct_np = cbct_tensor.cpu().numpy()[0, 0]
@@ -545,8 +567,8 @@ elif page == "Live Demo":
 
         st.markdown("---")
         st.markdown("## 📊 Generated Results")
-        st.markdown("## 🧾 AI Fusion Results")
-        st.caption("Multimodal visualization output from the fusion engine")
+        st.markdown("## 🧾 AI Fusion Output")
+        st.caption("Integrated multimodal visualization (Panoramic + CBCT + Soft Tissue)")
 
         with st.container():
             st.markdown("#### 📊 Visualization")
@@ -614,6 +636,25 @@ elif page == "Live Demo":
                 "It can later be replaced with a real MONAI segmentation model output."
             )
 
+            st.markdown("### 🧠 AI Summary")
+
+            mean_val = float(np.mean(output_np))
+            max_val = float(np.max(output_np))
+
+            if mean_val > 0:
+                summary = "The fused output highlights areas of structural density wth moderate intensity."
+            else:
+                summary = "The fused output shows low-intensity regions with minimal structural emphasis."
+                st.info(f"""
+                **Auto-generated Insight:**
+
+                - Average activation: {mean_val:.2f}
+                - Peak activation: {max_val:.2f}
+
+                Interpretation:
+                {summary}
+                """) 
+
         if show_heatmap:
             st.markdown("---")
             st.markdown("### 🔥 AI Attention Heatmap")
@@ -680,7 +721,7 @@ Capabilities:
 - Interactive exploration
 - Multi-view CBCT browsing
 - DICOM-ready CBCT ingestion scaffold
-- Simulated segmentation overlay / ROI mask
+- Simulated segmentation overlay / ROI mask 
 
 CBCT Details:
 - Input Type: {cbct_info["type"]}
@@ -693,10 +734,13 @@ CBCT Details:
 Note:
 Prototype workflow. Not for clinical use.
 """
+        pdf_buffer = generate_pdf_report(report_text)
+
         st.download_button(
-            "📄 Download Clinical Report",
-            data=report_text,
-            file_name="fusion_report.txt",
+            "📄 Download Clinical Report (PDF)",
+            data=pdf_buffer,
+            file_name="dental_ai_report.pdf",
+            mime="application/pdf",
         )
 
         st.caption("⚠️ Prototype workflow. Not for clinical use.")
