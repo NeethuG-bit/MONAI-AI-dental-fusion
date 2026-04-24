@@ -18,10 +18,10 @@ from reportlab.lib.pagesizes import letter
 from segmentation_model import run_segmentation 
 
 def generate_pdf_report(text_content, filename="report.pdf"):
-    buffer = io.BytesID()
-    doc = SompleDocTemplate(buffer, pagesize=letter)
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
 
-    styles = getSamplestyleSheet()
+    styles = getSampleStyleSheet()
     story = []
 
     for line in text_content.split("\n"):
@@ -74,7 +74,7 @@ with st.sidebar:
     intensity = st.slider("Output Enhancement", 0.5, 2.0, 1.0)
     show_heatmap = st.toggle("Show AI Heatmap", value=True)
     presentation_mode = st.toggle("🎤 Presentation Mode", value=False)
-    show_segmentation = st.toggle("Show Segemntation Overlay", value=True)
+    show_segmentation = st.toggle("Show Segementation Overlay", value=True)
     segmentation_threshold = st.slider("Segmentation sensitivity", 0.1, 0.9, 0.55)
 
     st.markdown("---")
@@ -605,7 +605,7 @@ elif page == "Live Demo":
         axv.axis("off")
         st.pyplot(fig_view)
 
-        st.markdown("---")(
+        st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
 
         img = get_slice(output_np)
@@ -623,7 +623,7 @@ elif page == "Live Demo":
 
             base_img = get_slice(cbct_np)
             output_img = get_slice(output_np)
-            seg_tensor, seg_mode = run_segmentation(cbct_tensor, devices)
+            seg_tensor, seg_mode = run_segmentation(cbct_tensor, device)
 
             seg_np = seg_tensor.cpu().numpy()[0, 0]
             seg_slice = get_slice(seg_np)
@@ -641,7 +641,7 @@ elif page == "Live Demo":
                 st.warning("Using fallback segmentation because trained model weights were not found.")
 
             else:
-                st.success("Real segmentation model loaded successfully.")    
+                st.success("Real segmentation model loaded successfully.")     
 
             st.caption(
                 "This overlay is a simulated ROI mask for demo purposes."
@@ -657,15 +657,15 @@ elif page == "Live Demo":
                 summary = "The fused output highlights areas of structural density wth moderate intensity."
             else:
                 summary = "The fused output shows low-intensity regions with minimal structural emphasis."
-                st.info(f"""
-                **Auto-generated Insight:**
+            st.info(f"""
+            **Auto-generated Insight:**
 
-                - Average activation: {mean_val:.2f}
-                - Peak activation: {max_val:.2f}
+            - Average activation: {mean_val:.2f}
+            - Peak activation: {max_val:.2f}
 
-                Interpretation:
-                {summary}
-                """) 
+            Interpretation:
+            {summary}
+            """) 
 
         if show_heatmap:
             st.markdown("---")
