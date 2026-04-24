@@ -599,11 +599,44 @@ elif page == "Live Demo":
 
         selected_view, _, _ = get_volume_view(cbct_np, view=view_mode, index=selected_idx)
 
+        st.markdown("### 📊 Viewer Controls")
+
+        vc1, vc2, vc3 = st.columns(3)
+
+        with vc1:
+            brightness = st.slider("Brightness", -500.0, 500.0, 0.0)
+
+        with vc2:
+            contrast = st.slider("Contrast", 0.5, 2.0, 1.0)
+
+        with vc3:
+            zoom = st.slider("zoom", 1.0, 3.0, 1.0)     
+
+        viewer_img = selected_view.astype(np.float32)
+        viewer_img = (viewer_img * contrast) + brightness
+
+        if zoom > 1.0:
+            h, w = viewer_img.shape
+            crop_h = int(h / zoom)
+            crop_w = int(w / zoom)
+
+            start_h = (h - crop_h) // 2
+            start_w = (w - crop_w) // 2
+
+            viewer_img = viewer_img[
+                start_h:start_h + crop_h,
+                start_w:start_w + crop_w
+            ]
+
         fig_view, axv = plt.subplots()
-        axv.imshow(selected_view, cmap=cmap)
+        axv.imshow(viewer_img, cmap=cmap)
         axv.set_title(f"{view_mode} View — Slice {selected_idx}")
         axv.axis("off")
         st.pyplot(fig_view)
+
+        st.caption(
+            f"Viewer settings — Brightness: {brightness}, Contrast: {contrast}, Zoom: {zoom}x"
+        )
 
         st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
