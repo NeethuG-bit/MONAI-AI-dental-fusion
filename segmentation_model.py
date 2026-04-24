@@ -1,5 +1,5 @@
 import torch
-from monai.networks.nets import Unsupported
+from monai.networks.nets import UNet
 
 
 def build_segmentation_model(device):
@@ -14,6 +14,7 @@ def build_segmentation_model(device):
 
     return model
 
+
 def run_segmentation(cbct_tensor, device, weights_path="segmentation_model.pth"):
     model = build_segmentation_model(device)
 
@@ -22,13 +23,12 @@ def run_segmentation(cbct_tensor, device, weights_path="segmentation_model.pth")
         model.eval()
 
         with torch.no_grad():
-            pred = model(cbcr_tensor)
+            pred = model(cbct_tensor)
             mask = torch.sigmoid(pred)
             mask = (mask > 0.5).float()
 
         return mask, "real"
 
     except Exception:
-        # fallback if trained model is not available
         mask = (cbct_tensor > cbct_tensor.mean()).float()
         return mask, "fallback"
