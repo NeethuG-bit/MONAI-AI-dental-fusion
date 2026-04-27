@@ -628,15 +628,57 @@ elif page == "Live Demo":
                 start_w:start_w + crop_w
             ]
 
+        viewer_img = selected_view.astype(np.float32)
+        viewer_img = (viewer_img * contrast) + brightness
+
+        if zoom > 1.0:
+            h, w = viewer_img.shape
+            crop_h = int(h / zoom)
+            crop_w = int(w / zoom)
+
+            start_h = (h - crop_h) // 2
+            start_w = (w - crop_w) // 2
+
+            viewer_img = viewer_img[
+                start_h:start_h + crop_h,
+                start_w:start_w + crop_w
+            ]
+
         fig_view, axv = plt.subplots()
         axv.imshow(viewer_img, cmap=cmap)
-        axv.set_title(f"{view_mode} View — Slice {selected_idx}")
-        axv.axis("off")
+
+        # draw measurement line 
+        avx.plot([x1, x2], [y1, y2], color='red', linewidth=2)
+        avx.scatter([x1, x2], [y1, y2], color='yellow')
+        
+        axv.set_title(f"{view_mode} View - Slice {selected_idx}")
+        avx.axis("off")
         st.pyplot(fig_view)
 
         st.caption(
             f"Viewer settings — Brightness: {brightness}, Contrast: {contrast}, Zoom: {zoom}x"
         )
+
+        st.markdown("### 📏 Measurement Tool")
+
+        col_m1, col_m2 = st.columns(2)
+
+        with col_m1:
+            x1 = st.number_input("Point 1 - x", 0, viewer_img.shape[1], 10)
+            y1 = st.number_input("Point 1 - y", 0, viewer_img.shape[0], 10)
+
+        with col_m2:
+            x2 = st.number_input("Point 2 - x", 0, viewer_img.shape[1], 50)
+            y2 = st.number_input("Point 2 - y", 0, viewer_img.shape[0], 50)
+
+        distance_px = ((x2 - x1)**2 + (y2 - y1)**2) ** 0.5
+
+        # simulate mm conversion 
+        pixel_spacing = 0.3   # mm per pixel (dummy realistic value)
+        distance_mm = distance_px * pixel_spacing
+
+        st.info (f"Distance: {distance_mm:.2f} mm")
+
 
         st.markdown("---")
         st.markdown("### 🎯 Detected Region (Simulated)")
