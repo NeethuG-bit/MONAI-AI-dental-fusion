@@ -889,6 +889,45 @@ elif page == "Architecture":
 
 elif page == "Platform":
     platform_cards()
+
+    # -------- MONAI ECOSYSTEM SECTION --------
+    st.markdown("## 🧬 MONAI Ecosystem Alignment")
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.info("""
+### MONAI Core
+Used for medical imaging model development, transforms, and inference.
+
+Current use:
+- fusion model pipeline
+- medical preprocessing
+- segmentation integration
+""")
+
+    with c2:
+        st.info("""
+### MONAI Label
+Future clinician-in-the-loop annotation layer.
+
+Future use:
+- AI-assissted labeling
+- active learning
+- dentist feedback loop
+""")
+
+    with c3:
+        st.info("""
+### MONAI Deploy
+Future clinical deployment layer.
+
+Future use:
+- DICOM workflow integration
+- containerized deployment
+- scalable inference
+""")
+
     outcomes_cards()
     clinical_summary_box()
 
