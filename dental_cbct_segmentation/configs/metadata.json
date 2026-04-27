@@ -1,0 +1,43 @@
+{
+    "schema": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20240725.json",
+    "version": "0.1.0",
+    "name": "Dental CBCT Segmentation",
+    "task": "Dental CBCT Region Segmentation",
+    "description": "A proof-of-concept MONAI Bundle for 3D dental CBCT segmentation. This bundle is intended to segment regions of interest from CBCT volumes as part of a dental imaging AI workflow.",
+    "authors": "Neethu Priya",
+    "copyright": "Copyright 2026",
+    "license": "Apache-2.0",
+    "intended_use": "Research and proof-of-concept use only. Not intended for clinical diagnosis or treatment planning.",
+    "references": [
+      "https://project-monai.github.io/"
+    ],
+    "network_data_format": {
+      "inputs": {
+        "image": {
+          "type": "image",
+          "format": "3D volume",
+          "modality": "CBCT",
+          "num_channels": 1,
+          "spatial_shape": [64, 64, 32]
+        }
+      },
+      "outputs": {
+        "pred": {
+          "type": "segmentation",
+          "format": "3D binary mask",
+          "num_channels": 1,
+          "spatial_shape": [64, 64, 32]
+        }
+      }
+    },
+    "training_data": {
+      "description": "No validated clinical training dataset is included in this initial bundle skeleton. Future versions should document dataset source, license, annotation protocol, and validation split.",
+      "data_license": "To be defined"
+    },
+    "performance": {
+      "description": "No clinical validation metrics are available yet. Future versions should report Dice score, Hausdorff distance, sensitivity, specificity, and validation dataset details."
+    },
+    "monai_version": "1.5.2",
+    "pytorch_version": "2.11.0",
+    "bundle_type": "research_prototype"
+  }
