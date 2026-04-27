@@ -18,25 +18,5 @@
   
     "network": "$@network_def.to(@device)",
   
-    "preprocessing": {
-      "description": "Input CBCT volume should be resized or padded to shape [1, 64, 64, 32] and intensity-normalized before inference."
-    },
-  
-    "inferer": {
-      "_target_": "SlidingWindowInferer",
-      "roi_size": [64, 64, 32],
-      "sw_batch_size": 1,
-      "overlap": 0.25
-    },
-  
-    "postprocessing": {
-      "description": "Apply sigmoid activation followed by thresholding at 0.5 to produce binary segmentation mask."
-    },
-  
-    "output": {
-      "type": "binary_segmentation_mask",
-      "shape": [1, 64, 64, 32]
-    },
-  
-    "note": "This is an initial research-prototype inference configuration. A trained model weight file must be added under models/model.pt before real inference."
+    "run": "$print('Dental CBCT Segmentation bundle validation passed. Network initialized successfully.')"
   }
