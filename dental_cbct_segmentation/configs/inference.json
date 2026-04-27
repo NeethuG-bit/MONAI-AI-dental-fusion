@@ -1,10 +1,18 @@
 {
     "imports": [
       "$import torch",
+      "$import nibabel as nib",
+      "$import numpy as np",
       "$from monai.networks.nets import UNet"
     ],
   
     "device": "$torch.device('cuda' if torch.cuda.is_available() else 'cpu')",
+  
+    "input_path": "$@bundle_root + '/testing_data/test_cbct.nii.gz'",
+  
+    "image": "$nib.load(@input_path).get_fdata().astype(np.float32)",
+  
+    "image_tensor": "$torch.tensor(@image).unsqueeze(0).unsqueeze(0).float().to(@device)",
   
     "network_def": {
       "_target_": "UNet",
@@ -18,5 +26,7 @@
   
     "network": "$@network_def.to(@device)",
   
-    "run": "$print('Dental CBCT Segmentation bundle validation passed. Network initialized successfully.')"
+    "prediction": "$@network(@image_tensor)",
+  
+    "run": "$print('Inference completed. Output shape:', @prediction.shape)"
   }
