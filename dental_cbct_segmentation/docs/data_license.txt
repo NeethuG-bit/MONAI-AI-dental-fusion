@@ -1,0 +1,22 @@
+Data License Information
+
+This initial MONAI Bundle skeleton does not include patient data or a validated training dataset.
+
+No real patient images, CBCT scans, DICOM files, or segmentation masks are distributed with this bundle.
+
+Future versions of this bundle should clearly document:
+
+1. Dataset name 
+2. Dataset source
+3. Dataset lisence
+4. Annotation protocol
+5. Train / validation / test split
+6. any restrictions on clinical or commercial use
+
+Current status:
+- Dataset included: No
+- Clinical data included: No
+- Training labels included: No
+- Data License: To be defined in future dataset-backed version
+
+This bundle is currently intended for research, education, and proof-of-concept development only.
