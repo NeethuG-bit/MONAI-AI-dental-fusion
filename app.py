@@ -304,6 +304,8 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
         "patient_name": "Unknown",
         "study_date": "Unknown",
         "modality": "Unknown",
+        "pixel_spacing": "Unknown",
+        "slice_thickness": "Unknown",
     }
 
     if cbct_file is None:
@@ -326,18 +328,30 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
             info["original_slice_count"] = len(dicom_names)
 
             first_ds = None
-            for name in dicom_names:
+
+            dicom_items = []
+
+            for idx, name in enumerate(dicom_names):
                 with zf.open(name) as f:
                     ds, pixel_array = read_dicom_from_bytes(f.read())
-                    if first_ds is None:
-                        first_ds = ds
-                    arr = preprocess_dicom_array(pixel_array, target_size=target_size)
-                    slices.append(arr)
+                    sort_value = get_dicom_sort_value(ds, idx)
+                    dicom_items.append((sort_values, ds, pixel_array))
+
+            dicom_items = sorted(dicom_items, key=lambda x: x[0])
+
+            for _, ds, pixel_array in dicom_items:
+                if first_ds is None:
+                    first_ds = ds
+                arr = preprocess_dicom_array(pixel_array, target_size=target_size)
+                slices.append(arr)            
+
 
             if first_ds is not None:
                 info["patient_name"] = safe_getattr(first_ds, "PatientName")
                 info["study_date"] = safe_getattr(first_ds, "StudyDate")
                 info["modality"] = safe_getattr(first_ds, "Modality")
+                info["pixel_spacing"] = safe_getattr(first_ds, "PixelSpacing")
+                info["slice_thickness"] = safe_getattr(first_ds, "SliceThickness")
 
         elif image_names:
             info["type"] = "image_stack"
@@ -392,6 +406,12 @@ def get_volume_view(volume, view="Axial", index=None):
         return volume[:, index, :], w - 1, index
 
     raise ValueError(f"Unknown view: {view}")
+
+def get_dicom_sort_value(ds, fallback):
+    try:
+        return int(getattr(ds, "InstanceNumber", fallback))
+    except Exception:
+        return fallback
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -566,6 +586,12 @@ elif page == "Live Demo":
 
         cmap = "viridis" if use_colored_output else "gray"
 
+        st.markdown("### 🧭 DICOM Metadata")
+
+        d1, d2 = st.columns(2)
+        d1.info(f"Pixel Spacing: {cbtc_info.get('pixel_spacing', 'Unknown')}")
+        d2.info(f"Slice_Thickness: {cbtc_info.get('slice_thickness', 'Unknown')}")
+
         st.markdown("---")
         st.markdown("## 📊 Generated Results")
         st.markdown("## 🧾 AI Fusion Output")
@@ -658,6 +684,20 @@ elif page == "Live Demo":
         st.caption(
             f"Viewer settings — Brightness: {brightness}, Contrast: {contrast}, Zoom: {zoom}x"
         )
+
+        st.markdown("#### 🪟 Window Presets")
+
+        preset = st.selectbox(
+            "Select Window Preset",
+            ["Default", "Bone", "Soft Tissue"]
+        )
+
+        if preset == "Bone":
+            contrast = 1.6
+            brightness = 100.0
+        elif preset == "Soft Tissue":
+            contrast = 0.8
+            brightness = -100.0    
 
         st.markdown("### 📏 Measurement Tool")
 
@@ -817,6 +857,8 @@ CBCT Details:
 - Patient Name: {cbct_info["patient_name"]}
 - Study Date: {cbct_info["study_date"]}
 - Modality: {cbct_info["modality"]}
+- Pixel Spacing: {cbct_info.get("pixel_spacing", "Unknown")}
+- Slice Thickness: {cbct_info.get("slice_thickness", "Unknown")}
 
 Note:
 Prototype workflow. Not for clinical use.
