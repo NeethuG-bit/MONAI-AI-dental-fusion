@@ -59,3 +59,9 @@ python -m monai.bundle run \
 Below is an example segmentation result:
 
 ![Sample Output](sample_output.png)
+
+## Sample Output
+
+Below is an example prediction from the model:
+
+![Prediction Preview](sample_output.png)
