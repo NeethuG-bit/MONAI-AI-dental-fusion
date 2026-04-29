@@ -1,0 +1,6 @@
+Dental CBCT Segmentation Evaluation
+----------------------------------
+Dice Score (pseudo-label sanity check): 0.5894
+
+Note: This metric uses a pseudo-label generated from the test volume intensity.
+It is not a clinical validation score.
