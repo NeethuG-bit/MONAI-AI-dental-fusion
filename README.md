@@ -52,3 +52,9 @@ monai_dental_project/
 ├── demo_sections.py
 ├── requirements.txt
 └── README.md
+
+## MONAI Bundle
+
+This project includes a MONAI Bundle for CBCT segmentation located at:
+
+dental_cbct_segmentation/

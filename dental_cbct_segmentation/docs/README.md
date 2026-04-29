@@ -37,9 +37,25 @@ Modality: CBCT (Cone Beam Computed Tomography)
 python -m monai.bundle run \
   --bundle_root . \
   --config_file configs/inference.json
-  
+
+
+## Inference Pipeline
+
+- Load CBCT volume (NIfTI format)
+- Convert to tensor
+- Run 3D UNet model
+- Apply sigmoid + threshold
+- Save output mask as NIfTI
+
 
 # Example training command (requires dataset setup)
 python -m monai.bundle run \
   --bundle_root . \
   --config_file configs/train.json  
+
+
+## Sample Output
+
+Below is an example segmentation result:
+
+![Sample Output](sample_output.png)
