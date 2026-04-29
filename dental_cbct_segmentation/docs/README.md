@@ -51,7 +51,15 @@ python -m monai.bundle run \
 # Example training command (requires dataset setup)
 python -m monai.bundle run \
   --bundle_root . \
-  --config_file configs/train.json  
+  --config_file configs/train.json
+
+
+## Evaluation
+
+A basic sanity-check evaluation script is included:
+
+```bash
+python evaluate_bundle.py  
 
 
 ## Sample Output
