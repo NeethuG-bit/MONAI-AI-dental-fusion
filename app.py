@@ -572,8 +572,11 @@ elif page == "Live Demo":
             model = DentalFusionNetwork().to(device)
             model.eval()
 
+            start_time = time.time()
+
             with torch.no_grad():
                 output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
+                inference_time, _ = time.time() - start_time
 
         if not presentation_mode:
             progress.empty()
@@ -604,7 +607,7 @@ elif page == "Live Demo":
         m1.metric("Dice Score", "Sanity Check")
         m2.metric("PSNR", f"{psnr_value:.2f} dB")
         m3.metric("SSIM", f"{ssim_value:.3f}")
-        m4.metric("Inference Time", "CPU Demo")
+        m4.metric("Inference Time", f"{inference_time:.2f} sec")
 
         st.info("""
         This demo follows the MONAI POC workflow:
