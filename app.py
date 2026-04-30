@@ -15,7 +15,8 @@ from transforms import get_transforms
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
-from segmentation_model import run_segmentation 
+from segmentation_model import run_segmentation
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity 
 
 def generate_pdf_report(text_content, filename="report.pdf"):
     buffer = io.BytesIO()
@@ -413,6 +414,27 @@ def get_dicom_sort_value(ds, fallback):
     except Exception:
         return fallback
 
+def calculate_image_metrics(reference_img, output_img):
+    ref = np.asarray(reference_img).astype(np.float32)
+    out = np.asarray(output_img).astype(np.float32)
+
+    ref = get_slice(ref)
+    out = get_slice(out)
+
+    ref_min, ref_max = ref.min(), ref.max()
+    out_min, out_max = out.min(), out.max()
+
+    if ref_max - ref_min > 1e-6:
+        ref = (ref - ref_data) / (ref_max - ref_min)
+
+    if out_max - out_min > 1e-6:
+        out = (out - out_min) / (out_max - out_min)
+
+    psnr = peak_signal_noise_ratio(ref, out, data_range=1.0)
+    ssim = structural_similarity(ref, out, data_range=1.0)
+
+    return psnr, ssim    
+
 # ---------------- PAGES ----------------
 if page == "Overview":
     overview_cards()
@@ -574,12 +596,14 @@ elif page == "Live Demo":
             c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
             c4.metric("Output", str(np.asarray(output_np).shape))
 
+        psnr_value, ssim_value = calculate_image_metrics(cbct_np, output_np)
+
         st.markdown("## ✅ POC Validation Dashboard")
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Dice Score", "Sanity Check")
-        m2.metric("PSNR", "Demo Metric")
-        m3.metric("SSIM", "Demo Metric")
+        m2.metric("PSNR", f"{psnr_value:.2f} dB")
+        m3.metric("SSIM", f"{ssim_value:.3f}")
         m4.metric("Inference Time", "CPU Demo")
 
         st.info("""
