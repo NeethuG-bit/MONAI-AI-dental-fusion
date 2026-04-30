@@ -64,7 +64,7 @@ with st.sidebar:
     st.title("Platform Navigation")
     page = st.radio(
         "Select view",
-        ["Overview", "Live Demo", "Use Cases", "Architecture", "Platform"]
+        ["Overview", "Live Demo", "Workflow", "Use Cases", "Architecture", "Platform"]
     )
     st.markdown("---")
     run_demo = st.button("Run Fusion Demo")
@@ -574,6 +574,19 @@ elif page == "Live Demo":
             c3.metric("Soft Tissue", str(np.asarray(soft_np).shape))
             c4.metric("Output", str(np.asarray(output_np).shape))
 
+        st.markdown("## ✅ POC Validation Dashboard")
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Dice Score", "Sanity Check")
+        m2.metric("PSNR", "Demo Metric")
+        m3.metric("SSIM", "Demo Metric")
+        m4.metric("Inference Time", "CPU Demo")
+
+        st.info("""
+        This demo follows the MONAI POC workflow:
+        CBCT + PAN + Soft Tissue -> Preprocessing -> Feature Extraction -> Fusion -> Visualization -> Evaluation.
+        """)    
+
         st.markdown("### 📦 Volume Summary")
         v1, v2, v3, v4 = st.columns(4)
         v1.metric("Input Type", cbct_info["type"])
@@ -877,6 +890,89 @@ Prototype workflow. Not for clinical use.
 
     else:
         st.info("Upload preview images, CBCT slice ZIP, or DICOM ZIP series — or click 'Run Fusion Demo' to use built-in demo data.")
+
+elif page == "Workflow":
+    st.title("🔄 MONAI Fusion Workflow")
+    st.caption("End-to-end AI pipeline aligned with the POC documentation")
+
+    st.markdown("## 🧭 Pipeline Overview")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.info("""
+### 1️⃣ Data Collection
+- CBCT scans  
+- Panoramic X-rays  
+- Soft-tissue scans  
+""")
+
+    with c2:
+        st.info("""
+### 2️⃣ Preprocessing
+- Normalization  
+- Resizing  
+- Alignment  
+- Modality pairing  
+""")
+
+    with c3:
+        st.info("""
+### 3️⃣ Model Training
+- MONAI Core  
+- 3D UNet  
+- Fusion layer  
+- Dice / MSE / SSIM loss  
+""")
+
+    with c4:
+        st.info("""
+### 4️⃣ Fusion Output
+- Enhanced image  
+- Segmentation  
+- Heatmap  
+- Clinical view  
+""")
+
+    st.markdown("### ➜ Workflow Flow")
+
+    st.success("""
+CBCT + PAN + Soft Tissue  
+→ Preprocessing  
+→ Feature Extraction  
+→ Fusion Layer  
+→ Decoder  
+→ Fused Output  
+→ Segmentation / Evaluation
+""")
+
+    st.markdown("## 🧬 MONAI Components")
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    with m1:
+        st.metric("MONAI Core", "Training + Inference")
+
+    with m2:
+        st.metric("MONAI Bundle", "Model Packaging")
+
+    with m3:
+        st.metric("MONAI Deploy", "Deployment Ready")
+
+    with m4:
+        st.metric("MONAI Label", "Annotation Loop")
+
+    st.markdown("## 📊 Evaluation Targets")
+
+    e1, e2, e3, e4 = st.columns(4)
+
+    e1.metric("Dice Score", "> 0.85")
+    e2.metric("PSNR", "> 30 dB")
+    e3.metric("SSIM", "> 0.90")
+    e4.metric("Inference", "CPU / GPU")
+
+    st.warning("Prototype status: demo-ready, not for clinical diagnosis.")
+
 
 elif page == "Use Cases":
     use_case_tabs()
