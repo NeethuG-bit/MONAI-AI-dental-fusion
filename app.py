@@ -444,7 +444,7 @@ def calculate_image_metrics(reference_img, output_img):
     out_min, out_max = out.min(), out.max()
 
     if ref_max - ref_min > 1e-6:
-        ref = (ref - ref_data) / (ref_max - ref_min)
+        ref = (ref - ref_min) / (ref_max - ref_min)
 
     if out_max - out_min > 1e-6:
         out = (out - out_min) / (out_max - out_min)
@@ -595,7 +595,8 @@ elif page == "Live Demo":
 
             with torch.no_grad():
                 output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
-                inference_time, _ = time.time() - start_time
+
+            inference_time = time.time() - start_time
 
         if not presentation_mode:
             progress.empty()
