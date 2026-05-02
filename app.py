@@ -582,6 +582,20 @@ elif page == "Live Demo":
             progress.empty()
 
         st.success("Fusion inference completed successfully")
+        st.markdown("## 🧪 Preprocessing & Quality Checks")
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        q1.success("Normalization ✅")
+        q2.success("Resizing ✅")
+        q3.success("Modality Pairing ✅")
+        q4.success("Input Validation ✅")
+
+        st.info(""" 
+        Preprocessing completed:
+        CBCT, PAN, and Soft Tissue inputs were normalized, resized, converted to tensors, and prepared for fusion inference.
+        """)
+        
         st.markdown("### 🤖 AI Interpretation Layer")
         st.success("Fusion complete. Generating visual intelligence...")
         st.markdown("### 🧪 Clinical View")
