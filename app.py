@@ -595,7 +595,7 @@ elif page == "Live Demo":
         Preprocessing completed:
         CBCT, PAN, and Soft Tissue inputs were normalized, resized, converted to tensors, and prepared for fusion inference.
         """)
-        
+
         st.markdown("### 🤖 AI Interpretation Layer")
         st.success("Fusion complete. Generating visual intelligence...")
         st.markdown("### 🧪 Clinical View")
@@ -891,31 +891,46 @@ elif page == "Live Demo":
         status_col3.success("Visualization ✅")
 
         report_text = f"""
-Dental AI Fusion Report
+DENTAL AI MULTIMODAL FUSION REPORT
+----------------------------------
 
-System:
+SYSTEM OVERVIEW:
 - MONAI-based multimodal fusion pipeline
+- Inputs: CBCT + Panoramic + Soft Tissue
 
-Capabilities:
-- Cross-modality alignment
-- Integrated visualization
-- Interactive exploration
-- Multi-view CBCT browsing
-- DICOM-ready CBCT ingestion scaffold
-- Simulated segmentation overlay / ROI mask 
-
-CBCT Details:
-- Input Type: {cbct_info["type"]}
-- Original uploaded slices: {cbct_info["original_slice_count"]}
-- Model depth after preprocessing: {cbct_np.shape[2]}
+INPUT DETAILS:
+- CBCT Type: {cbct_info["type"]}
+- Original Slices: {cbct_info["original_slice_count"]}
+- Model Depth: {cbct_np.shape[2]}
 - Patient Name: {cbct_info["patient_name"]}
-- Study Date: {cbct_info["study_date"]}
+- Study Date: {cbct-info["study_date"]}
 - Modality: {cbct_info["modality"]}
-- Pixel Spacing: {cbct_info.get("pixel_spacing", "Unknown")}
-- Slice Thickness: {cbct_info.get("slice_thickness", "Unknown")}
 
-Note:
-Prototype workflow. Not for clinical use.
+PREPROCESSING
+- Normalization: Completed
+- Resizing: Completed
+- Alignment: Completed
+- Modality Pairing: Completed
+
+PERFORMANCE METRICS
+- Dice Score: Sanity Check
+- PSNR: {psnr_value:.2f} dB
+- SSIM: {ssim_value:.3f}
+- Inference Time: {inference_time:.2f} sec
+
+AI INTERPRETATION
+- Multimodal fusion highlights structural + soft tissue alignment
+- Regions of internet detected using simulated alignment
+- Heatmap shows AI attention zones
+
+OUTPUT SUMMARY
+- Fused visualization generated
+- CBCT multi-view explorer enabled
+- Segementation overlay applied
+- Heatmap visualization available
+
+DISCLAIMER
+This is a research prototype and not intended for clinical diagnosis.
 """
         pdf_buffer = generate_pdf_report(report_text)
 
