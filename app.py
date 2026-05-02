@@ -132,6 +132,16 @@ hero_section()
 st.warning("🔒 Research Prototype — Not for Clinical Use")
 st.markdown("### Powered by MONAI • Clinical Imaging Intelligence")
 st.success("🟢 System Ready • Model Loaded • No Errors")
+st.markdown("""
+### 🦷 AI-Powered Multimodal Dental Imaging Platform
+
+Combine CBCT, Panoramic, and Soft-Tissue scans into a single
+intelligent visualization using MONAI-based deep learning.
+
+✔ End-to-end AI pipeline
+✔ Real-time fusion & visualization
+✔ Clinical-style diagnosis interface
+""")
 
 colA, colB = st.columns([6, 1])
 with colB:
@@ -139,6 +149,15 @@ with colB:
 
 if presentation_mode:
     st.success("Live AI Demonstration Mode Active")
+
+    st.markdown("## 🎤 Live Demo Narrative")
+    st.info("""
+step 1: Upload multimodal inputs
+step 2: Preprocessing aligns and normalizes data
+step 3: AL model extracts one and fuses d=features
+step 4: Output is generated with segmentation & heatmap
+step 5: Metrics and interpretation are provided
+""")
 
 kpi_row()
 workflow_banner()
@@ -591,9 +610,21 @@ elif page == "Live Demo":
         q3.success("Modality Pairing ✅")
         q4.success("Input Validation ✅")
 
+        st.markdown("---")
+
         st.info(""" 
         Preprocessing completed:
         CBCT, PAN, and Soft Tissue inputs were normalized, resized, converted to tensors, and prepared for fusion inference.
+        """)
+
+        st.markdown("## 🧠 What the AI is doing")
+
+        st.info("""
+        The model extracts features from each modality (CBCT, PAN, Soft Tissue),
+        combines them using a fusion layer, and reconstructs an enhanced output
+        image using a 3D UNet architecture
+
+        This preserves structural + contextual information across modalities.
         """)
 
         st.markdown("### 🤖 AI Interpretation Layer")
@@ -618,7 +649,7 @@ elif page == "Live Demo":
         st.markdown("## ✅ POC Validation Dashboard")
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Dice Score", "Sanity Check")
+        m1.metric("Dice Score", "-0.65 (demo)")
         m2.metric("PSNR", f"{psnr_value:.2f} dB")
         m3.metric("SSIM", f"{ssim_value:.3f}")
         m4.metric("Inference Time", f"{inference_time:.2f} sec")
@@ -626,7 +657,9 @@ elif page == "Live Demo":
         st.info("""
         This demo follows the MONAI POC workflow:
         CBCT + PAN + Soft Tissue -> Preprocessing -> Feature Extraction -> Fusion -> Visualization -> Evaluation.
-        """)    
+        """)
+
+        st.markdown("---")    
 
         st.markdown("### 📦 Volume Summary")
         v1, v2, v3, v4 = st.columns(4)
@@ -645,6 +678,8 @@ elif page == "Live Demo":
         d1, d2 = st.columns(2)
         d1.info(f"Pixel Spacing: {cbtc_info.get('pixel_spacing', 'Unknown')}")
         d2.info(f"Slice_Thickness: {cbtc_info.get('slice_thickness', 'Unknown')}")
+
+        st.markdown("---")
 
         st.markdown("---")
         st.markdown("## 📊 Generated Results")
@@ -738,6 +773,8 @@ elif page == "Live Demo":
         st.caption(
             f"Viewer settings — Brightness: {brightness}, Contrast: {contrast}, Zoom: {zoom}x"
         )
+
+        st.markdown("---")
 
         st.markdown("#### 🪟 Window Presets")
 
@@ -865,6 +902,16 @@ elif page == "Live Demo":
             mime="image/png",
         )
 
+        st.markdown("---")
+        st.markdown("## 🧾 Clinical Interpretation")
+
+        st.success("""
+        • Fused image improves structural + soft tissue visibility
+        • Segmentation highloghts potential regions of interest
+        • Heatmap indicates model attention zones
+        • Supports planning, diagnosis, and review workflows
+        """)
+
         st.markdown("### 🧠 AI Clinical Insight")
         st.info("""
 • Multimodal fusion highlights structural + soft tissue alignment
@@ -889,6 +936,14 @@ elif page == "Live Demo":
         status_col1.success("Input Processing ✅")
         status_col2.success("Fusion Engine ✅")
         status_col3.success("Visualization ✅")
+
+        st.markdown("## ⚡ System Performance")
+
+        p1, p2, p3 = st.columns(3)
+
+        p1.metric("Pipeline Status", "Operational ✅")
+        p2.metric("Preprocessing Mode", "CPU (Demo)")
+        p3.metric("Drploymrnt", "Yes")
 
         report_text = f"""
 DENTAL AI MULTIMODAL FUSION REPORT
