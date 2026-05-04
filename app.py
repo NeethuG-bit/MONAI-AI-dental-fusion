@@ -60,12 +60,21 @@ st.set_page_config(
 if "panel" not in st.session_state:
     st.session_state["panel"] = "pan"
 
+if "fusion_done" not in st.session_state:
+    st.session_state["fusion_done"] = False
+
+if "fusion_results" not in st.session_state:
+    st.session_state["fusion_results"] = None
+
+panel = st.session_state.get("panel")    
+
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.title("Platform Navigation")
     page = st.radio(
         "Select view",
-        ["Overview", "Live Demo", "Workflow", "Use Cases", "Architecture", "Platform"]
+        ["Overview", "Live Demo", "Workflow", "Use Cases", "Architecture", "Platform"],
+        key="selected_page"
     )
     st.markdown("---")
     run_demo = st.button("Run Fusion Demo")
@@ -355,7 +364,7 @@ def load_cbct_volume(cbct_file, target_size=(64, 64), depth=32):
                 with zf.open(name) as f:
                     ds, pixel_array = read_dicom_from_bytes(f.read())
                     sort_value = get_dicom_sort_value(ds, idx)
-                    dicom_items.append((sort_values, ds, pixel_array))
+                    dicom_items.append((sort_value, ds, pixel_array))
 
             dicom_items = sorted(dicom_items, key=lambda x: x[0])
 
@@ -544,105 +553,133 @@ elif page == "Live Demo":
                 with col:
                     st.image(img, caption="Slice", use_container_width=True, clamp=True)
 
-    if run_demo:
-        if presentation_mode:
-            st.markdown("### 🔄 Processing Pipeline")
-            step_box = st.empty()
-            progress = st.progress(0)
+    if run_demo or st.session_state["fusion_done"]:
 
-            steps = [
-                ("🔹 Loading multimodal inputs...", 20),
-                ("🔹 Applying transformations...", 40),
-                ("🔹 Running fusion model...", 70),
-                ("🔹 Generating output...", 100),
-            ]
+        using_cached_results = st.session_state["fusion_done"] and not run_demo 
 
-            last_progress = 0
-            for text, prog in steps:
-                step_box.info(text)
-                for i in range(last_progress, prog):
+        if using_cached_results:
+            results = st.session_state["fusion_results"]
+
+            pan_np = results["pan_np"]
+            cbct_np = results["cbct_np"]
+            soft_np = results["soft_np"]
+            output_np = results["output_np"]
+            cbct_info = results["cbct_info"]
+            inference_time = results["inference_time"]
+            cbct_tensor = results["cbct_tensor"]
+            device = results["device"]
+
+        else:    
+            if presentation_mode:
+                st.markdown("### 🔄 Processing Pipeline")
+                step_box = st.empty()
+                progress = st.progress(0)
+
+                steps = [
+                    ("🔹 Loading multimodal inputs...", 20),
+                    ("🔹 Applying transformations...", 40),
+                    ("🔹 Running fusion model...", 70),
+                    ("🔹 Generating output...", 100),
+                ]
+
+                last_progress = 0
+                for text, prog in steps:
+                    step_box.info(text)
+                    for i in range(last_progress, prog):
+                        time.sleep(0.01)
+                        progress.progress(i + 1)
+                    last_progress = prog
+
+                step_box.success("✅ Processing Complete")
+                progress.empty()
+            else:
+                progress = st.progress(0)
+                for i in range(100):
                     time.sleep(0.01)
                     progress.progress(i + 1)
-                last_progress = prog
 
-            step_box.success("✅ Processing Complete")
-            progress.empty()
-        else:
-            progress = st.progress(0)
-            for i in range(100):
-                time.sleep(0.01)
-                progress.progress(i + 1)
+            with st.spinner("Running multimodal fusion inference..."):
+                device = torch.device("cpu")
 
-        with st.spinner("Running multimodal fusion inference..."):
-            device = torch.device("cpu")
+                if pan_file:
+                    pan = preprocess_image_2d(pan_file, target_size=(64, 64), mode="panoramic")
+                else:
+                    pan = generate_panoramic((64, 64))
 
-            if pan_file:
-                pan = preprocess_image_2d(pan_file, target_size=(64, 64), mode="panoramic")
-            else:
-                pan = generate_panoramic((64, 64))
+                cbct, cbct_info = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
 
-            cbct, cbct_info = load_cbct_volume(cbct_source, target_size=(64, 64), depth=32)
+                if soft_file:
+                    soft = preprocess_image_2d(soft_file, target_size=(64, 64), mode="soft")
+                else:
+                    soft = generate_soft_tissue((64, 64))
 
-            if soft_file:
-                soft = preprocess_image_2d(soft_file, target_size=(64, 64), mode="soft")
-            else:
-                soft = generate_soft_tissue((64, 64))
+                pan_t, cbct_t, soft_t = get_transforms()
 
-            pan_t, cbct_t, soft_t = get_transforms()
+                pan_tensor = pan_t(pan).unsqueeze(0).float().to(device)
+                cbct_tensor = cbct_t(cbct).unsqueeze(0).float().to(device)
+                soft_tensor = soft_t(soft).unsqueeze(0).float().to(device)
 
-            pan_tensor = pan_t(pan).unsqueeze(0).float().to(device)
-            cbct_tensor = cbct_t(cbct).unsqueeze(0).float().to(device)
-            soft_tensor = soft_t(soft).unsqueeze(0).float().to(device)
+                model = DentalFusionNetwork().to(device)
+                model.eval()
 
-            model = DentalFusionNetwork().to(device)
-            model.eval()
+                start_time = time.time()
 
-            start_time = time.time()
+                with torch.no_grad():
+                    output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
 
-            with torch.no_grad():
-                output_tensor, _ = model(pan_tensor, cbct_tensor, soft_tensor)
+                inference_time = time.time() - start_time
 
-            inference_time = time.time() - start_time
+            if not presentation_mode:
+                progress.empty()
 
-        if not presentation_mode:
-            progress.empty()
+            st.success("Fusion inference completed successfully")
+            st.markdown("## 🧪 Preprocessing & Quality Checks")
 
-        st.success("Fusion inference completed successfully")
-        st.markdown("## 🧪 Preprocessing & Quality Checks")
+            q1, q2, q3, q4 = st.columns(4)
 
-        q1, q2, q3, q4 = st.columns(4)
+            q1.success("Normalization ✅")
+            q2.success("Resizing ✅")
+            q3.success("Modality Pairing ✅")
+            q4.success("Input Validation ✅")
 
-        q1.success("Normalization ✅")
-        q2.success("Resizing ✅")
-        q3.success("Modality Pairing ✅")
-        q4.success("Input Validation ✅")
+            st.markdown("---")
 
-        st.markdown("---")
+            st.info(""" 
+            Preprocessing completed:
+            CBCT, PAN, and Soft Tissue inputs were normalized, resized, converted to tensors, and prepared for fusion inference.
+            """)
 
-        st.info(""" 
-        Preprocessing completed:
-        CBCT, PAN, and Soft Tissue inputs were normalized, resized, converted to tensors, and prepared for fusion inference.
-        """)
+            st.markdown("## 🧠 What the AI is doing")
 
-        st.markdown("## 🧠 What the AI is doing")
+            st.info("""
+            The model extracts features from each modality (CBCT, PAN, Soft Tissue),
+            combines them using a fusion layer, and reconstructs an enhanced output
+            image using a 3D UNet architecture
 
-        st.info("""
-        The model extracts features from each modality (CBCT, PAN, Soft Tissue),
-        combines them using a fusion layer, and reconstructs an enhanced output
-        image using a 3D UNet architecture
+            This preserves structural + contextual information across modalities.
+            """)
 
-        This preserves structural + contextual information across modalities.
-        """)
+            st.markdown("### 🤖 AI Interpretation Layer")
+            st.success("Fusion complete. Generating visual intelligence...")
+            st.markdown("### 🧪 Clinical View")
+            st.caption("Radiology-style visualization for diagnostic interpretation")  
 
-        st.markdown("### 🤖 AI Interpretation Layer")
-        st.success("Fusion complete. Generating visual intelligence...")
-        st.markdown("### 🧪 Clinical View")
-        st.caption("Radiology-style visualization for diagnostic interpretation")  
+            pan_np = pan_tensor.cpu().numpy()[0, 0]
+            cbct_np = cbct_tensor.cpu().numpy()[0, 0]
+            soft_np = soft_tensor.cpu().numpy()[0, 0]
+            output_np = output_tensor.cpu().numpy()[0, 0] * intensity
 
-        pan_np = pan_tensor.cpu().numpy()[0, 0]
-        cbct_np = cbct_tensor.cpu().numpy()[0, 0]
-        soft_np = soft_tensor.cpu().numpy()[0, 0]
-        output_np = output_tensor.cpu().numpy()[0, 0] * intensity
+            st.session_state["fusion_done"] = True
+            st.session_state["fusion_results"] = {
+                "pan_np": pan_np,
+                "cbct_np": cbct_np,
+                "soft_np": soft_np,
+                "output_np": output_np,
+                "cbct_info": cbct_info,
+                "inference_time": inference_time,
+                "cbct_tensor": cbct_tensor,
+                "device": device,
+            }
 
         if show_shapes:
             c1, c2, c3, c4 = st.columns(4)
@@ -732,7 +769,21 @@ elif page == "Live Demo":
             contrast = st.slider("Contrast", 0.5, 2.0, 1.0)
 
         with vc3:
-            zoom = st.slider("zoom", 1.0, 3.0, 1.0)     
+            zoom = st.slider("zoom", 1.0, 3.0, 1.0)
+
+        st.markdown("#### 🪟 Window Presets")
+
+        preset = st.selectbox(
+            "Select Window Preset",
+            ["Default", "Bone", "Soft Tissue"]
+        )
+
+        if preset == "Bone":
+            contrast = 1.6
+            brightness = 100.0
+        elif preset == "Soft Tissue":
+            contrast = 0.8
+            brightness = -100.0         
 
         viewer_img = selected_view.astype(np.float32)
         viewer_img = (viewer_img * contrast) + brightness
@@ -750,8 +801,6 @@ elif page == "Live Demo":
                 start_w:start_w + crop_w
             ]
 
-        viewer_img = selected_view.astype(np.float32)
-        viewer_img = (viewer_img * contrast) + brightness
 
         if zoom > 1.0:
             h, w = viewer_img.shape
@@ -765,16 +814,24 @@ elif page == "Live Demo":
                 start_h:start_h + crop_h,
                 start_w:start_w + crop_w
             ]
+
+        max_x = viewer_img.shape[1] - 1
+        max_y = viewer_img.shape[0] - 1
+
+        default_x1 = min(10, max_x)
+        default_y1 = min(10, max_y)
+        default_x2 = min(50, max_x)
+        default_y2 = min(50, max_y)
 
         col_m1, col_m2 = st.columns(2)
 
         with col_m1:
-            x1 = st.number_input("Point 1 - x", 0, viewer_img.shape[1], 10)
-            y1 = st.number_input("Point 1 - y", 0, viewer_img.shape[0], 10)
+            x1 = st.number_input("Point 1 - x", 0, max_x, default_x1, key="x1")
+            y1 = st.number_input("Point 1 - y", 0, max_y, default_y1, key="y1")
 
         with col_m2:
-            x2 = st.number_input("Point 2 - x", 0, viewer_img.shape[1], 50)
-            y2 = st.number_input("Point 2 - y", 0, viewer_img.shape[0], 50)
+            x2 = st.number_input("Point 2 - x", 0, max_x, default_x2, key="x2")
+            y2 = st.number_input("Point 2 - y", 0, max_y, default_y2, key="y2")
 
         fig_view, axv = plt.subplots()
         axv.imshow(viewer_img, cmap=cmap)
@@ -793,20 +850,6 @@ elif page == "Live Demo":
         )
 
         st.markdown("---")
-
-        st.markdown("#### 🪟 Window Presets")
-
-        preset = st.selectbox(
-            "Select Window Preset",
-            ["Default", "Bone", "Soft Tissue"]
-        )
-
-        if preset == "Bone":
-            contrast = 1.6
-            brightness = 100.0
-        elif preset == "Soft Tissue":
-            contrast = 0.8
-            brightness = -100.0    
 
         st.markdown("### 📏 Measurement Tool")
 
