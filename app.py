@@ -440,6 +440,12 @@ def calculate_image_metrics(reference_img, output_img):
     ref = get_slice(ref)
     out = get_slice(out)
 
+    # Resize output to match reference size
+    if ref.shape != out.shape:
+        out_img = Image.fromarray(out)
+        out_img = out_img.resize((ref.shape[1], ref.shape[0]))
+        out = np.array(out_img).astype(np.float32)
+
     ref_min, ref_max = ref.min(), ref.max()
     out_min, out_max = out.min(), out.max()
 
@@ -677,8 +683,8 @@ elif page == "Live Demo":
         st.markdown("### 🧭 DICOM Metadata")
 
         d1, d2 = st.columns(2)
-        d1.info(f"Pixel Spacing: {cbtc_info.get('pixel_spacing', 'Unknown')}")
-        d2.info(f"Slice_Thickness: {cbtc_info.get('slice_thickness', 'Unknown')}")
+        d1.info(f"Pixel Spacing: {cbct_info.get('pixel_spacing', 'Unknown')}")
+        d2.info(f"Slice_Thickness: {cbct_info.get('slice_thickness', 'Unknown')}")
 
         st.markdown("---")
 
@@ -760,15 +766,26 @@ elif page == "Live Demo":
                 start_w:start_w + crop_w
             ]
 
+        col_m1, col_m2 = st.columns(2)
+
+        with col_m1:
+            x1 = st.number_input("Point 1 - x", 0, viewer_img.shape[1], 10)
+            y1 = st.number_input("Point 1 - y", 0, viewer_img.shape[0], 10)
+
+        with col_m2:
+            x2 = st.number_input("Point 2 - x", 0, viewer_img.shape[1], 50)
+            y2 = st.number_input("Point 2 - y", 0, viewer_img.shape[0], 50)
+
         fig_view, axv = plt.subplots()
         axv.imshow(viewer_img, cmap=cmap)
 
         # draw measurement line 
-        avx.plot([x1, x2], [y1, y2], color='red', linewidth=2)
-        avx.scatter([x1, x2], [y1, y2], color='yellow')
+        axv.plot([x1, x2], [y1, y2], color='red', linewidth=2)
+        axv.scatter([x1, x2], [y1, y2], color='yellow')
         
         axv.set_title(f"{view_mode} View - Slice {selected_idx}")
-        avx.axis("off")
+        axv.axis("off")
+
         st.pyplot(fig_view)
 
         st.caption(
@@ -792,16 +809,6 @@ elif page == "Live Demo":
             brightness = -100.0    
 
         st.markdown("### 📏 Measurement Tool")
-
-        col_m1, col_m2 = st.columns(2)
-
-        with col_m1:
-            x1 = st.number_input("Point 1 - x", 0, viewer_img.shape[1], 10)
-            y1 = st.number_input("Point 1 - y", 0, viewer_img.shape[0], 10)
-
-        with col_m2:
-            x2 = st.number_input("Point 2 - x", 0, viewer_img.shape[1], 50)
-            y2 = st.number_input("Point 2 - y", 0, viewer_img.shape[0], 50)
 
         distance_px = ((x2 - x1)**2 + (y2 - y1)**2) ** 0.5
 
@@ -944,7 +951,7 @@ elif page == "Live Demo":
 
         p1.metric("Pipeline Status", "Operational ✅")
         p2.metric("Preprocessing Mode", "CPU (Demo)")
-        p3.metric("Drploymrnt", "Yes")
+        p3.metric("Deployment", "Yes")
 
         report_text = f"""
 DENTAL AI MULTIMODAL FUSION REPORT
@@ -959,7 +966,7 @@ INPUT DETAILS:
 - Original Slices: {cbct_info["original_slice_count"]}
 - Model Depth: {cbct_np.shape[2]}
 - Patient Name: {cbct_info["patient_name"]}
-- Study Date: {cbct-info["study_date"]}
+- Study Date: {cbct_info["study_date"]}
 - Modality: {cbct_info["modality"]}
 
 PREPROCESSING
