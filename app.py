@@ -8,6 +8,7 @@ import streamlit as st
 import torch
 import matplotlib.pyplot as plt
 import pydicom
+import datetime
 
 from model import DentalFusionNetwork
 from data import generate_panoramic, generate_cbct, generate_soft_tissue
@@ -18,6 +19,8 @@ from reportlab.lib.pagesizes import letter
 from pydicom.dataset import Dataset 
 from segmentation_model import run_segmentation
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity 
+from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid, SecondaryCaptureImageStorage
 
 def generate_pdf_report(text_content, filename="report.pdf"):
     buffer = io.BytesIO()
@@ -485,16 +488,47 @@ def create_dicom_overlay(image):
     if arr_max - arr_min > 1e-6:
         arr = (arr - arr_min) / (arr_max - arr_min)
 
-    ds = Dataset()
-    ds.Rows, ds.Columns = arr.shape
-    ds.SamplePerPixel = 1
+    pixel_array = (arr * 255).astype("uint8")
+
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    file_meta.ImplementationClassUID = generate_uid()
+
+    ds = FileDataset(
+        None,
+        {},
+        file_meta=file_meta,
+        preamble=b"\0" *128
+    )
+
+    dt = datetime.datetime.now()
+
+    ds.PatientName = "Demo^Patient"
+    ds.PatientID = "DEMO001"
+    ds.Modality = "OT"
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.StudyDate = dt.strftime("%Y%m%d")
+    ds.StudyTime = dt.strftime("%H%M%S")
+    ds.SeriesDescription = "Dental AI Fusion Overlay"
+
+    ds.Rows, ds.Columns = pixel_array.shape
+    ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
     ds.BitsAllocated = 8
     ds.BitsStored = 8
     ds.HighBit = 7
     ds.PixelRepresentation = 0
-    ds.PixelData = (arr * 255).astype("uint8").tobytes()
+    ds.PixelData = pixel_array.tobytes()
 
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+
+    dicom_ds.save_as(dicom_buffer, write_like_original=False)
     return ds
 
 # ---------------- PAGES ----------------
