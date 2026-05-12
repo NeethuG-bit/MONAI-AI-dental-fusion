@@ -916,7 +916,7 @@ elif page == "Live Demo":
             dicom_ds = create_dicom_overlay(output_np)
 
             dicom_buffer = io.BytesIO()
-            dicom_ds.save_as(dicom_buffer)
+            dicom_ds.save_as(dicom_buffer, write_like_original=False)
             dicom_buffer.seek(0)
 
             st.download_button(
