@@ -450,8 +450,8 @@ def dice_score(pred, gt):
     pred = np.asarray(pred) > 0.5
     gt = np.asarray(gt) > 0.5
 
-    intersection = np.logical_and(pred, gt)
-    return (2.0 * intersection) / (pred.sum() + 1e-6)        
+    intersection = np.logical_and(pred, gt).sum()
+    return (2.0 * intersection) / (pred.sum() + gt.sum() + 1e-6)        
 
 def calculate_image_metrics(reference_img, output_img):
     ref = np.asarray(reference_img).astype(np.float32)
@@ -958,8 +958,6 @@ elif page == "Live Demo":
                 file_name="fusion_overlay.dcm",
                 mime="application/dicom",
             )
-            
-            st.download_button("📄 Download Clinical Report (PDF)")
 
             st.markdown("### 🧩 Segmentation Overlay")
 
