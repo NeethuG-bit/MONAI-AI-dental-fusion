@@ -73,3 +73,10 @@ Below is an example segmentation result:
 Below is an example prediction from the model:
 
 ![Prediction Preview](sample_output.png)
+
+# MONAI Deploy pipeline
+
+This project includes a MONAI Deploy-style inference pipeline in:
+
+```text
+monai_deploy_app.py
