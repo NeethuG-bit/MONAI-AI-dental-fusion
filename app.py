@@ -528,7 +528,6 @@ def create_dicom_overlay(image):
     ds.is_little_endian = True
     ds.is_implicit_VR = False
 
-    dicom_ds.save_as(dicom_buffer, write_like_original=False)
     return ds
 
 # ---------------- PAGES ----------------
