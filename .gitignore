@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 datasets/
 *.nii.gz
+venv311/
+temp_slices/
+*.zip
