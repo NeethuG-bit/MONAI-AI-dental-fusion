@@ -2,6 +2,7 @@ import os
 import torch
 import nibabel as nib
 import numpy as np
+import matplotlib.pyplot as plt
 
 from monai.deploy.core import Application
 from monai.networks.nets import UNet
@@ -9,21 +10,12 @@ from monai.networks.nets import UNet
 
 class DentalFusionApp(Application):
     def __init__(self):
-
         self.input_path = "dental_cbct_segmentation/testing_data/test_cbct.nii.gz"
-
         self.model_path = "dental_cbct_segmentation/models/model.pt"
-
         self.output_dir = "monai_deploy_outputs"
-
-        self.output_path = os.path.join(
-            self.output_dir, 
-            "deploy_pred_mask.nii.gz"
-        )
-
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
+        self.output_path = os.path.join(self.output_dir, "deploy_pred_mask.nii.gz")
+        self.preview_path = os.path.join(self.output_dir, "deploy_preview.png")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         super().__init__()
 
@@ -82,6 +74,30 @@ class DentalFusionApp(Application):
 
         print("Saved output:", self.output_path)
 
+    def save_preview(self):
+        print("🖼️ Generating deployment preview...")
+
+        mid = self.image.shape[2] // 2
+
+        plt.figure(figsize=(10, 4))
+
+        plt.subplot(1, 2, 1)
+        plt.imshow(self.image[:, :, mid], cmap="gray")
+        plt.title("Input CBCT")
+        plt.axis("off")
+
+        plt.subplot(1, 2, 2)
+        plt.imshow(self.image[:, :, mid], cmap="gray")
+        plt.imshow(self.pred_mask[:, :, mid], cmap="jet", alpha=0.35)
+        plt.title("Segmentation Overlay")
+        plt.axis("off")
+
+        plt.tight_layout()
+        plt.savefig(self.preview_path, dpi=200)
+        plt.close()
+
+        print("Saved preview:", self.preview_path)
+
     def compose(self):
         print("====================================")
         print("Dental AI MONAI Deploy Pipeline")
@@ -91,6 +107,7 @@ class DentalFusionApp(Application):
         self.preprocess()
         self.run_inference()
         self.save_output()
+        self.save_preview()
 
         print("✅ Pipeline completed successfully.")
 
