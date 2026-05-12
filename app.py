@@ -15,6 +15,7 @@ from transforms import get_transforms
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
+from pydicom.dataset import Dataset 
 from segmentation_model import run_segmentation
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity 
 
@@ -442,6 +443,13 @@ def get_dicom_sort_value(ds, fallback):
     except Exception:
         return fallback
 
+def dice_score(pred, gt):
+    pred = np.asarray(pred) > 0.5
+    gt = np.asarray(gt) > 0.5
+
+    intersection = np.logical_and(pred, gt)
+    return (2.0 * intersection) / (pred.sum() + 1e-6)        
+
 def calculate_image_metrics(reference_img, output_img):
     ref = np.asarray(reference_img).astype(np.float32)
     out = np.asarray(output_img).astype(np.float32)
@@ -467,7 +475,27 @@ def calculate_image_metrics(reference_img, output_img):
     psnr = peak_signal_noise_ratio(ref, out, data_range=1.0)
     ssim = structural_similarity(ref, out, data_range=1.0)
 
-    return psnr, ssim    
+    return psnr, ssim
+
+def create_dicom_overlay(image):
+    arr = np.asarray(image).astype(np.float32)
+    arr = get_slice(arr)
+
+    arr_min, arr_max = arr.min(), arr.max()
+    if arr_max - arr_min > 1e-6:
+        arr = (arr - arr_min) / (arr_max - arr_min)
+
+    ds = Dataset()
+    ds.Rows, ds.Columns = arr.shape
+    ds.SamplePerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.BitsAllocated = 8
+    ds.BitsStored = 8
+    ds.HighBit = 7
+    ds.PixelRepresentation = 0
+    ds.PixelData = (arr * 255).astype("uint8").tobytes()
+
+    return ds
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -693,7 +721,7 @@ elif page == "Live Demo":
         st.markdown("## ✅ POC Validation Dashboard")
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Dice Score", "-0.65 (demo)")
+        m1.metric("Dice Score", "Sanity Check")
         m2.metric("PSNR", f"{psnr_value:.2f} dB")
         m3.metric("SSIM", f"{ssim_value:.3f}")
         m4.metric("Inference Time", f"{inference_time:.2f} sec")
@@ -736,7 +764,7 @@ elif page == "Live Demo":
             c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
             c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
-            c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)
+            c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)    
 
         st.markdown("---")
         st.markdown("### 🧊 Advanced CBCT Explorer")
@@ -884,6 +912,21 @@ elif page == "Live Demo":
 
             seg_np = seg_tensor.cpu().numpy()[0, 0]
             seg_slice = get_slice(seg_np)
+
+            dicom_ds = create_dicom_overlay(output_np)
+
+            dicom_buffer = io.BytesIO()
+            dicom_ds.save_as(dicom_buffer)
+            dicom_buffer.seek(0)
+
+            st.download_button(
+                "⬇️ Download DICOM Overlay",
+                data=dicom_buffer,
+                file_name="fusion_overlay.dcm",
+                mime="application/dicom",
+            )
+            
+            st.download_button("📄 Download Clinical Report (PDF)")
 
             st.markdown("### 🧩 Segmentation Overlay")
 
