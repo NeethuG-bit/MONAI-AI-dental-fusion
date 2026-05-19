@@ -9,6 +9,9 @@ import torch
 import matplotlib.pyplot as plt
 import pydicom
 import datetime
+import imageio.v2 as imageio
+import cv2
+import plotly.graph_objects as go
 
 from model import DentalFusionNetwork
 from data import generate_panoramic, generate_cbct, generate_soft_tissue
@@ -16,11 +19,20 @@ from transforms import get_transforms
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
-from pydicom.dataset import Dataset 
+from pydicom.dataset import Dataset
+from skimage import measure 
+from scipy import ndimage
 from segmentation_model import run_segmentation
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity 
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid, SecondaryCaptureImageStorage
+
+
+if "fusion_done" not in st.session_state:
+    st.session_state["fusion_done"] = False
+
+if "fusion_results" not in st.session_state:
+    st.session_state["fusion_results"] = {}     
 
 def generate_pdf_report(text_content, filename="report.pdf"):
     buffer = io.BytesIO()
@@ -77,7 +89,7 @@ with st.sidebar:
     st.title("Platform Navigation")
     page = st.radio(
         "Select view",
-        ["Overview", "Live Demo", "Workflow", "Use Cases", "Architecture", "Platform"],
+        ["Overview", "Live Demo", "Fusion Explainability", "Workflow", "Use Cases", "Architecture", "Platform"],
         key="selected_page"
     )
     st.markdown("---")
@@ -480,6 +492,15 @@ def calculate_image_metrics(reference_img, output_img):
 
     return psnr, ssim
 
+def normalize_for_display(arr):
+    arr = np.asarray(arr).astype(np.float32)
+    arr_min, arr_max = arr.min(), arr.max()
+
+    if arr_max - arr_min > 1e-6:
+        arr = (arr - arr_min) / (arr_max - arr_min)
+
+    return arr
+
 def create_dicom_overlay(image):
     arr = np.asarray(image).astype(np.float32)
     arr = get_slice(arr)
@@ -529,6 +550,157 @@ def create_dicom_overlay(image):
     ds.is_implicit_VR = False
 
     return ds
+
+def show_3d_volume(volume, title="3D CBCT Volume"):
+
+    vol = normalize_for_display(volume)
+
+    vol = vol[::2, ::2, ::2]
+
+    x, y, z = np.mgrid[
+        0:vol.shape[0],
+        0:vol.shape[1],
+        0:vol.shape[2]
+    ]    
+
+    fig = go.Figure(data=go.Volume(
+        x=x.flatten(),
+        y=y.flatten(),
+        z=z.flatten(),
+        value=vol.flatten(),
+        opacity=0.08,
+        surface_count=15,
+    ))
+
+    fig.update_layout(
+        title=title,
+        height=700,
+        scene=dict(
+            xaxis_title="x",
+            yaxis_title="y",
+            zaxis_title="z",
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+def show_3d_surface(volume, title="3D Surface Rendering", threshold=0.45):
+    vol = normalize_for_display(volume)
+
+    vol = vol[::2, ::2, ::2]
+
+    binary = vol > threshold 
+    
+    binary = ndimage.binary_opening(binary)
+    binary = ndimage.binary_closing(binary)
+    binary = ndimage.binary_fill_holes(binary)
+
+    if binary.sum() < 10:
+        st.warning("Not enough high-density structure found for 3D structure rendering. Try lowering the threshold.")
+        return
+
+    verts, faces, normals, values = measure.marching_cubes(
+        binary.astype(np.float32),
+        level=0.5
+    )
+
+    fig = go.Figure(data=[
+        go.Mesh3d(
+            x=verts[:, 0],
+            y=verts[:, 1],
+            z=verts[:, 2],
+            i=faces[:, 0],
+            j=faces[:, 1],
+            k=faces[:, 2],
+            opacity=0.65,
+            intensity=verts[:, 2]
+        )
+    ])
+
+    fig.update_layout(
+        title=title,
+        height=700,
+        scene=dict(
+            xaxis_title="x",
+            yaxis_title="y",
+            zaxis_title="z",
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+def show_3d_fusion_overlay(
+    cbct_volume, 
+    fusion_volume, 
+    title="3D Fusion Overlay",
+    cbct_threshold=0.45,
+    fusion_threshold=0.50,
+    cbct_opacity=0.30,
+    fusion_opacity=0.75,
+):
+    cbct = normalize_for_display(cbct_volume)[::2, ::2, ::2]
+    fusion = normalize_for_display(fusion_volume)[::2, ::2, ::2]
+
+    cbct_binary = cbct > cbct_threshold
+    fusion_binary = fusion > fusion_threshold
+
+    cbct_binary = ndimage.binary_opening(cbct_binary)
+    cbct_binary = ndimage.binary_closing(cbct_binary)
+    cbct_binary = ndimage.binary_fill_holes(cbct_binary)
+
+    fusion_binary = ndimage.binary_opening(fusion_binary)
+    fusion_binary = ndimage.binary_closing(fusion_binary)
+    fusion_binary = ndimage.binary_fill_holes(fusion_binary)
+
+    if cbct_binary.sum() < 10 or fusion_binary.sum() < 10:
+        st.warning("Not enough structure found for 3D overlay. Try lowering the thresholds.")
+        return
+
+    cbct_verts, cbct_faces, _, _ = measure.marching_cubes(
+        cbct_binary.astype(np.float32),
+        level=0.5
+    )
+
+    fusion_verts, fusion_faces, _, _ = measure.marching_cubes(
+        fusion_binary.astype(np.float32),
+        level=0.5
+    )
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Mesh3d(
+        x=cbct_verts[:, 0],
+        y=cbct_verts[:, 1],
+        z=cbct_verts[:, 2],
+        i=cbct_faces[:, 0],
+        j=cbct_faces[:, 1],
+        k=cbct_faces[:, 2],
+        opacity=0.35,
+        name="CBCT Anatomy"
+    ))
+
+    fig.add_trace(go.Mesh3d(
+        x=fusion_verts[:, 0],
+        y=fusion_verts[:, 1],
+        z=fusion_verts[:, 2],
+        i=fusion_faces[:, 0],
+        j=fusion_faces[:, 1],
+        k=fusion_faces[:, 2],
+        opacity=0.75,
+        name="Fusion/Segmentation Output"
+    ))
+
+    fig.update_layout(
+        title=title,
+        height=700,
+        scene=dict(
+            xaxis_title="x",
+            yaxis_title="y",
+            zaxis_title="z",
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- PAGES ----------------
 if page == "Overview":
@@ -728,7 +900,26 @@ elif page == "Live Demo":
             pan_np = pan_tensor.cpu().numpy()[0, 0]
             cbct_np = cbct_tensor.cpu().numpy()[0, 0]
             soft_np = soft_tensor.cpu().numpy()[0, 0]
-            output_np = output_tensor.cpu().numpy()[0, 0] * intensity
+            output_np = output_tensor.cpu().numpy()[0, 0]
+            fused_vis = (output_np > 0.5).astype(np.float32)
+
+            fused_vis = cv2.GaussianBlur(
+                fused_vis.astype(np.float32),
+                (5, 5),
+                0
+            )
+
+            st.session_state["fusion_done"] = True
+            st.session_state["fusion_results"] = {
+                "pan_np": pan_np,
+                "cbct_np": cbct_np,
+                "soft_np": soft_np,
+                "output_np": fused_vis,
+                "cbct_info": cbct_info,
+                "inference_time": inference_time,
+                "cbct_tensor": cbct_tensor,
+                "device": device,
+            }
 
             st.session_state["fusion_done"] = True
             st.session_state["fusion_results"] = {
@@ -797,7 +988,12 @@ elif page == "Live Demo":
             c1.image(get_slice(pan_np), caption="Panoramic", use_container_width=True)
             c2.image(get_slice(cbct_np), caption="CBCT", use_container_width=True)
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
-            c4.image(get_slice(output_np), caption="Fused Output", use_container_width=True)    
+            c4.image(
+                get_slice(output_np),
+                caption="Fused-Based Segmentation Output",
+                use_container_width=True,
+                clamp=True
+            )    
 
         st.markdown("---")
         st.markdown("### 🧊 Advanced CBCT Explorer")
@@ -1127,6 +1323,205 @@ This is a research prototype and not intended for clinical diagnosis.
     else:
         st.info("Upload preview images, CBCT slice ZIP, or DICOM ZIP series — or click 'Run Fusion Demo' to use built-in demo data.")
 
+
+elif page == "Fusion Explainability":
+    st.title("🧠 AI Multimodal Fusion Explainability")
+    st.caption("Visual explanation of how CBCT, Panoramic, and Soft Tissue inputs are fused")
+
+    st.info("Run the Live Demo first to generate fusion results. Then return to this page.")
+
+    if not st.session_state["fusion_done"]:
+        st.warning("Fusion results are not available yet. Please go to Live Demo and click Run Fusion Demo.")
+    else:
+        results = st.session_state["fusion_results"]
+
+        pan_np = results["pan_np"]
+        cbct_np = results["cbct_np"]
+        soft_np = results["soft_np"]
+        output_np = results["output_np"]
+
+        pan_img = normalize_for_display(get_slice(pan_np))
+        cbct_slice = normalize_for_display(get_slice(cbct_np))
+        soft_img = normalize_for_display(get_slice(soft_np))
+        fused_img = normalize_for_display(get_slice(output_np))
+
+        st.markdown("## 🧠 Interactive Fusion Workflow")
+
+        fusion_step = st.select_slider(
+            "Fusion workflow step",
+            options=[
+                "PAN Input",
+                "CBCT Features",
+                "Soft Tissue",
+                "Attention Fusion",
+                "Fused Output",
+                "Segmentation"
+            ]
+        )
+
+        st.markdown("## 1️⃣ Input Modalities")
+
+        c1, c2, c3 = st.columns(3)
+        c1.image(pan_img, caption="Panoramic X-Ray", use_container_width=True, clamp=True)
+        c2.image(cbct_slice, caption="CBCT Slice", use_container_width=True, clamp=True)
+        c3.image(soft_img, caption="Soft Tissue", use_container_width=True, clamp=True)
+
+        st.markdown("---")
+
+        st.markdown("## 2️⃣ Feature Extraction")
+
+        feature_pan = normalize_for_display(pan_img)
+        feature_cbct = normalize_for_display(cbct_slice)
+        feature_soft = normalize_for_display(soft_img)
+
+        f1, f2, f3 = st.columns(3)
+        f1.image(feature_pan, caption="PAN Feature Map", use_container_width=True, clamp=True)
+        f2.image(feature_cbct, caption="CBCT Feature Map", use_container_width=True, clamp=True)
+        f3.image(feature_soft, caption="Soft Tissue Feature Map", use_container_width=True, clamp=True)
+
+        st.markdown("---")
+
+        st.markdown("## 3️⃣ Attention-Based Fusion")
+
+        w1, w2, w3 = st.columns(3)
+
+        with w1:
+            pan_weight = st.slider("PAN Weight", 0.0, 1.0, 0.35)
+
+        with w2:
+            cbct_weight = st.slider("CBCT Weight", 0.0, 1.0, 0.45)
+
+        with w3:
+            soft_weight = st.slider("Soft Tissue Weight", 0.0, 1.0, 0.20)
+
+        total_weight = pan_weight + cbct_weight + soft_weight
+
+        if total_weight == 0:
+            total_weight = 1.0
+
+        pan_w = pan_weight / total_weight
+        cbct_w = cbct_weight / total_weight
+        soft_w = soft_weight / total_weight
+
+        fusion_attention_map = (
+            pan_w * feature_pan +
+            cbct_w * feature_cbct +
+            soft_w * feature_soft
+        )
+
+        st.image(
+            normalize_for_display(fusion_attention_map),
+            caption="Fusion Attention Map",
+            use_container_width=True,
+            clamp=True
+        )
+
+        st.markdown("---")
+
+        st.markdown("## 4️⃣ Before vs After Fusion")
+
+        b1, b2 = st.columns(2)
+
+        b1.image(cbct_slice, caption="Before Fusion: CBCT Reference", use_container_width=True, clamp=True)
+        b2.image(
+            fused_img, 
+            caption="After Fusion: Fusion-Based Segmentation", 
+            use_container_width=True, 
+            clamp=True
+        )
+
+        st.markdown("---")
+        st.markdown("## 🧊 3D CBCT Volume Viewer")
+
+        show_3d_volume(cbct_np, "Interactive 3D CBCT Volume")
+
+        st.markdown("---")
+        st.markdown("## 🦷 3D Dental Surface Rendering")
+
+        surface_threshold = st.slider(
+            "Surface Extraction Threshold",
+            0.1,
+            0.9,
+            0.45,
+            key="surface_threshold"
+        )
+
+        show_3d_surface(
+            cbct_np,
+            title="Extracted 3D High-Density Sental Structure",
+            threshold=surface_threshold
+        )
+
+        st.markdown("---")
+        st.markdown("## 🔗 3D Fusion Overlay")
+
+        oc1, oc2 = st.columns(2)
+
+        with oc1:
+            cbct_threshold = st.slider(
+                "CBCT Surface Threshold",
+                0.1,
+                0.9,
+                0.45
+            )
+
+            cbct_opacity = st.slider(
+                "CBCT Opacity",
+                0.05,
+                1.0,
+                0.30
+            )
+
+        with oc2:
+            fusion_threshold = st.slider(
+                "Fusion Output Threshold",
+                0.1,
+                0.9,
+                0.50
+            )
+
+            fusion_opacity = st.slider(
+                "Fusion Overlay Opacity",
+                0.05,
+                1.0,
+                0.75
+            )
+
+        show_3d_fusion_overlay(
+            cbct_np,
+            output_np,
+            title="CBCT anatomy + Fusion-Based Segmentation Overlay",
+            cbct_threshold=cbct_threshold,
+            fusion_threshold=fusion_threshold,
+            cbct_opacity=cbct_opacity,
+            fusion_opacity=fusion_opacity,
+        )
+
+        st.markdown("---")
+
+        st.markdown("## 5️⃣ Fusion Workflow")
+
+        st.success("""
+PAN Encoder + CBCT Encoder + Soft Tissue Encoder  
+→ Feature Extraction  
+→ Attention Weighting  
+→ Fusion Layer  
+→ Fused Representation  
+→ Segmentation / Visualization / Clinical Report
+""")
+
+        st.markdown("## 🧾 Clinical Interpretation")
+
+        st.info("""
+Fusion combines:
+- Structural CBCT information
+- Panoramic dental alignment context
+- Soft tissue appearance information
+
+The fusion layer creates a unified representation that supports segmentation, heatmap visualization, and clinical-style interpretation.
+""")
+
+
 elif page == "Workflow":
     st.title("🔄 MONAI Fusion Workflow")
     st.caption("End-to-end AI pipeline aligned with the POC documentation")
@@ -1208,6 +1603,7 @@ CBCT + PAN + Soft Tissue
     e4.metric("Inference", "CPU / GPU")
 
     st.warning("Prototype status: demo-ready, not for clinical diagnosis.")
+
 
 
 elif page == "Use Cases":
