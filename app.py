@@ -578,6 +578,32 @@ def show_intensity_distribution(image, title="Intensity Distribution"):
     c3.metric("Mean", f"{mean_val:.2f}")
     c4.metric("Std Dev", f"{std_val:.2f}")
 
+def create_registration_preview(fixed_img, moving_img, alpha=0.5):
+
+    fixed = normalize_for_display(
+        get_slice(fixed_img)
+    )
+
+    moving = normalize_for_display(
+        get_slice(moving_img)
+    )
+
+    if fixed.shape != moving.shape:
+
+        moving = cv2.resize(
+            moving,
+            (fixed.shape[1], fixed.shape[0])
+        )
+
+    overlay = (
+        (1 - alpha) * fixed +
+        alpha * moving
+    )
+
+    overlay = normalize_for_display(overlay)
+
+    return fixed, moving, overlay        
+
     
 def create_dicom_overlay(image):
     arr = np.asarray(image).astype(np.float32)
@@ -1101,7 +1127,60 @@ pixel intensity distribution before AI feature extraction.
         m2.metric(
             "PSNR (Denoised)",
             f"{psnr_denoised:.2f} dB"
-        )    
+        )
+
+        st.markdown("---")
+        st.subheader("🧭 Registration Preview")
+
+        registration_alpha = st.slider(
+            "Overlay Strength",
+            0.0,
+            1.0,
+            0.5
+        )
+
+        fixed_img, moving_img, registered_overlay = create_registration_preview(
+            pan_np,
+            cbct_np,
+            alpha=registration_alpha
+        )
+
+        r1, r2, r3 = st.columns(3)
+
+        with r1:
+            st.image(
+                fixed_img,
+                caption="Fixed Reference (Panoramic)",
+                use_container_width=True,
+                clamp=True
+            )
+
+        with r2:
+            st.image(
+                moving_img,
+                caption="Moving Image (CBCT)",
+                use_container_width=True,
+                clamp=True
+            )
+
+        with r3:
+            st.image(
+                registered_overlay,
+                caption="Registration Overlay",
+                use_container_width=True,
+                clamp=True
+            )
+
+        st.info("""
+        Image registration aligns multimodal scans into a shared spatia; reference.
+
+        - Fixed image -> anatomical reference
+        - Moving image -> aligned modality
+        - Overlay preview -> registration consistency
+
+        This preprocessing step improves multimodal fusion quality.
+        """)
+
 
         st.markdown("---")
 
