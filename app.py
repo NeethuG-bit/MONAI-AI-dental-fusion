@@ -208,6 +208,21 @@ def get_slice(img):
         return squeezed[:, :, mid]
     raise ValueError(f"Unsupported array shape: {squeezed.shape}")
 
+def get_axial_slice(volume, slice_idx, num_slices):
+    """Axial slice at slice_idx; 2D volumes unchanged; depth scaled to num_slices."""
+    vol = np.asarray(volume).squeeze()
+    if vol.ndim == 2:
+        return vol
+    if vol.ndim != 3:
+        raise ValueError(f"Unsupported volume shape: {vol.shape}")
+    depth = vol.shape[2]
+    if num_slices <= 1:
+        z = 0
+    else:
+        z = int(round(slice_idx * (depth - 1) / (num_slices - 1)))
+    z = max(0, min(z, depth - 1))
+    return vol[:, :, z]
+
 def preprocess_image_2d(uploaded_file, target_size=(64, 64), mode="panoramic"):
     img = Image.open(uploaded_file).convert("L").resize(target_size)
     arr = np.array(img).astype(np.float32)
@@ -531,7 +546,60 @@ def denoise_image(image, blur_strength=3):
         0
     )
 
-    return denoised    
+    return denoised
+
+def show_denoising_comparison(original_img, noisy_img, denoised_img):
+    st.subheader("Before / After Denoising")
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+
+    axes[0].imshow(original_img, cmap="gray")
+    axes[0].set_title("Original")
+    axes[0].axis("off")
+
+    axes[1].imshow(noisy_img, cmap="gray")
+    axes[1].set_title("Noisy Image")
+    axes[1].axis("off")
+
+    axes[2].imshow(denoised_img, cmap="gray")
+    axes[2].set_title("Denoised")
+    axes[2].axis("off")
+
+    difference = np.abs(noisy_img - deniosed_img)
+
+    axes[3].imshow(difference, cmap="hot")
+    axes[3].set_title("Noise Removed")
+    axes[3].axis("off")
+
+    plt.tight_layout()
+    st.pyplot(fig)
+
+    show_denoised_comparision(
+        original_slice,
+        noisy_slice,
+        denoised_slice
+    )
+
+    denoised_slice = cv2/fastNlMeansDenoising(
+        noisy_slice.astype(np.uint8),
+        None,
+        10,
+        7,
+        21
+    )
+
+    noisy_uint8 = (noisy_slice* 255).astype(np.uint8)
+
+    denoised_uint8 = cv2.fastNlMeansDenoising(
+        noisy_uint8,
+        None,
+        10,
+        7,
+        21
+    )
+
+    denoised_slice = denoised_uint8 / 255.0
+
 
 def show_histogram_analysis(image, title="Histogram Analysis"):
     img = np.asarray(image).astype(np.float32)
@@ -1172,7 +1240,7 @@ pixel intensity distribution before AI feature extraction.
             )
 
         st.info("""
-        Image registration aligns multimodal scans into a shared spatia; reference.
+        Image registration aligns multimodal scans into a shared spatial reference.
 
         - Fixed image -> anatomical reference
         - Moving image -> aligned modality
@@ -1568,6 +1636,41 @@ CBCT + PAN + Soft Tissue -> Preprocessing -> Feature Extraction -> Fusion -> Vis
             c3.image(get_slice(soft_np), caption="Soft Tissue", use_container_width=True)
             c4.image(get_slice(output_np), caption="Fused-Based Segmentation Output",
                      use_container_width=True, clamp=True)
+
+        st.subheader("Slice Synchronization")
+
+        cbct_vol = np.asarray(cbct_np).squeeze()
+        num_slices = cbct_vol.shape[2] if cbct_vol.ndim == 3 else 1
+
+        slice_idx = st.slider(
+            "Select Slice",
+            0,
+            max(num_slices - 1, 0),
+            num_slices // 2,
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.image(
+                get_axial_slice(cbct_np, slice_idx, num_slices),
+                caption=f"CBCT Slice {slice_idx}",
+                use_container_width=True,
+            )
+
+        with col2:
+            st.image(
+                get_axial_slice(soft_np, slice_idx, num_slices),
+                caption=f"Soft Tissue Slice {slice_idx}",
+                use_container_width=True,
+            )
+
+        with col3:
+            st.image(
+                get_axial_slice(output_np, slice_idx, num_slices),
+                caption=f"Fused Slice {slice_idx}",
+                use_container_width=True,
+            )
 
         st.markdown("---")
         st.markdown("### 🧊 Advanced CBCT Explorer")
