@@ -5,3 +5,4 @@ datasets/
 venv311/
 temp_slices/
 *.zip"venv/" 
+venv/ 
