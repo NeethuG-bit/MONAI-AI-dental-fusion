@@ -1240,7 +1240,7 @@ pixel intensity distribution before AI feature extraction.
             )
 
         st.info("""
-        Image registration aligns multimodal scans into a shared spatial reference.
+        Image registration aligns multimodal scans into a shared spatial grid  reference.
 
         - Fixed image -> anatomical reference
         - Moving image -> aligned modality
