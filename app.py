@@ -902,7 +902,9 @@ def generate_clinical_findings(volume, roi_mask):
 
     confidence = min(99, max(22, int(mean_intensity * 100)))
 
-    return findings, confidence                
+    return findings, confidence   
+
+#gjufyk
 
 # ---------------- PAGES ----------------
 
