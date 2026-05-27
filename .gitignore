@@ -4,4 +4,5 @@ datasets/
 *.nii.gz
 venv311/
 temp_slices/
-*.zip
+*.zip"venv/" 
+venv/ 
